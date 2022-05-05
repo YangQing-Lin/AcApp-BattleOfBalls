@@ -1,6 +1,6 @@
 let AC_GAME_OBJECTS = [];
 
-class AcGameObjects {
+class AcGameObject {
     constructor() {
         AC_GAME_OBJECTS.push(this);
 
@@ -53,3 +53,4 @@ let AC_GAME_ANIMATION = function (timestamp) {
 
 // 会将函数的执行时间控制在1/60秒（这一整行是一帧）
 requestAnimationFrame(AC_GAME_ANIMATION);
+

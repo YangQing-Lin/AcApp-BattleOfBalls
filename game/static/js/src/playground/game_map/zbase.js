@@ -1,4 +1,4 @@
-class GameMap extends AcGameObjects {
+class GameMap extends AcGameObject {
     constructor(playground) {
         super();  // 调用基类的构造函数
         this.playground = playground;
