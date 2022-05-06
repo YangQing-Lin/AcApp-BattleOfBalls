@@ -468,7 +468,7 @@ class AcGamePlayground {
         this.players.push(new Player(this, this.width / 2, this.height / 2, this.height * 0.05, "white", this.height * 0.15, true));
 
         // 绘制若干敌人
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 12; i++) {
             this.players.push(new Player(this, this.width / 2, this.height / 2, this.height * 0.05, this.get_random_color(), this.height * 0.15, false));
         }
     }
