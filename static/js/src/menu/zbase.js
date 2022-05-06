@@ -20,6 +20,7 @@ class AcGameMenu {
     </div>
 </div>
 `);
+        this.$menu.hide();
         // 将menu对象添加到ac_game对象中，这样就能动态更改页面了
         this.root.$ac_game.append(this.$menu);
 
