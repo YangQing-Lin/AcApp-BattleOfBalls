@@ -203,6 +203,11 @@ class GameMap extends AcGameObject {
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
 
         this.cur_skill = null;
+
+        if (this.is_me) {
+            this.img = new Image();
+            this.img.src = this.playground.root.settings.photo;
+        }
     }
 
     start() {
@@ -345,10 +350,21 @@ class GameMap extends AcGameObject {
     }
 
     render() {
-        this.ctx.beginPath();
-        this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
-        this.ctx.fillStyle = this.color;
-        this.ctx.fill();
+        // 如果是自己就画出头像，如果是敌人就用颜色代替
+        if (this.is_me) {
+            this.ctx.save();
+            this.ctx.beginPath();
+            this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            this.ctx.stroke();
+            this.ctx.clip();
+            this.ctx.drawImage(this.img, this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2);
+            this.ctx.restore();
+        } else {
+            this.ctx.beginPath();
+            this.ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2, false);
+            this.ctx.fillStyle = this.color;
+            this.ctx.fill();
+        }
     }
 
     // 玩家死亡后将其从this.playground.players里面删除
@@ -482,6 +498,8 @@ class AcGamePlayground {
         this.root = root;
         this.platform = "WEB";
         if (this.root.AcWingOS) this.platform = "ACAPP";
+        this.username = "";
+        this.photo = "";
 
         this.start();
     }
@@ -512,6 +530,10 @@ class AcGamePlayground {
                 console.log(resp);
                 // 从数据库中获取用户信息是否成功
                 if (resp.result === "success") {
+                    // 请求数据库成功的话就将用户名和头像信息存下来
+                    outer.username = resp.username;
+                    outer.photo = resp.photo;
+
                     outer.hide();
                     outer.root.menu.show();
                 } else {
