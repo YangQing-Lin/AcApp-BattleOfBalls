@@ -20,7 +20,7 @@ def getinfo_web(request):
             'result': "未登录",
         })
     else:
-        # 取出第一名玩家
+        # 查询用户
         player = Player.objects.get(user=user)
         return JsonResponse({
             'result': "success",

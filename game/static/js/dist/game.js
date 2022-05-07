@@ -651,6 +651,7 @@ class AcGamePlayground {
         });
     }
 
+    // acwing一键登录
     acwing_login() {
         $.ajax({
             url: "https://app383.acapp.acwing.com.cn:31443/settings/acwing/web/apply_code/",
