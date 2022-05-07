@@ -21,7 +21,7 @@ def getinfo_web(request):
         })
     else:
         # 取出第一名玩家
-        player = Player.objects.all()[0]
+        player = Player.objects.get(user=user)
         return JsonResponse({
             'result': "success",
             'username': player.user.username,

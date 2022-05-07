@@ -25,6 +25,7 @@ class Player extends AcGameObject {
         if (this.is_me) {
             this.img = new Image();
             this.img.src = this.playground.root.settings.photo;
+            console.log(this.img.src);
         }
     }
 
