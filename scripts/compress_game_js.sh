@@ -13,3 +13,10 @@ echo yes | python3 /home/bob/AcApp-BattleOfBalls/manage.py collectstatic
 
 # 启动uwsgi服务
 uwsgi --ini /home/bob/AcApp-BattleOfBalls/scripts/uwsgi.ini
+
+
+# 记录一下这里的坑点，项目进行到这里已经需要多个服务了，顺序是：
+# 启动nginx服务             sudo /etc/init.d/nginx start
+# 启动redis-server服务      sudo redis-server /etc/redis/redis.conf
+# 启动uwsgi服务             uwsgi –ini scripts/uwsgi.ini
+# 启动 django_channels服务  daphne -b 0.0.0.0 -p 5015 acapp.asgi:application
