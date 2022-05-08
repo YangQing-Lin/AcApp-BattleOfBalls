@@ -291,7 +291,6 @@ class Settings {
                 platform: outer.platform,
             },
             success: function (resp) {
-                console.log(resp);
                 if (resp.result === "success") {
                     // 获取用户信息成功的话就存储用户信息
                     outer.username = resp.username;

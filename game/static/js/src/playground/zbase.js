@@ -12,7 +12,7 @@ class AcGamePlayground {
     }
 
     add_enemy() {
-        this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, false));
+        this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
     }
 
     get_random_color() {
@@ -31,8 +31,6 @@ class AcGamePlayground {
 
     // 让界面的长宽比固定为16：9，并且等比例放到最大
     resize() {
-        console.log("resize");
-
         this.width = this.$playground.width();
         this.height = this.$playground.height();
         let unit = Math.min(this.width / 16, this.height / 9);
@@ -46,7 +44,9 @@ class AcGamePlayground {
         if (this.game_map) this.game_map.resize();
     }
 
-    show() {  // 打开playground界面
+    show(mode) {  // 打开playground界面
+        let outer = this;
+
         this.$playground.show();
 
         this.resize();
@@ -54,13 +54,27 @@ class AcGamePlayground {
         this.width = this.$playground.width();
         this.height = this.$playground.height();
         this.game_map = new GameMap(this);
+
+        this.resize();
+
         this.players = [];
         // 绘制玩家
-        this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, "white", 0.15, true));
+        this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, "white", 0.15, "me", this.root.settings.username, this.root.settings.photo));
 
-        // 绘制若干敌人
-        for (let i = 0; i < 12; i++) {
-            this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, false));
+        if (mode === "single mode") {
+            // 绘制若干敌人
+            for (let i = 0; i < 12; i++) {
+                this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
+            }
+        } else if (mode === "multi mode") {
+            this.mps = new MultiPlayerSocket(this);
+            // 使用自己的uuid（自己永远是第一个被加入数组里面的）
+            this.mps.uuid = this.players[0].uuid;
+
+            // 连接创建成功时的回调函数
+            this.mps.ws.onopen = function () {
+                outer.mps.send_create_player(outer.root.settings.username, outer.root.settings.photo);
+            };
         }
     }
 
