@@ -7,6 +7,7 @@
 - 编写登录和注册系统
 - 为用户数据库表添加openid字段
 - 编写WEB端acwing一键登录
+- 编写ACAPP端acwing一键登录
 
 ### 2022-05-06
 - 对接AcApp

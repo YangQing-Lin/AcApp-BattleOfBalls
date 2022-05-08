@@ -241,6 +241,8 @@ class GameMap extends AcGameObject {
             } else if (e.which === 1) {
                 if (outer.cur_skill === "fireball") {
                     outer.shoot_fireball(e.clientX - rect.left, e.clientY - rect.top);
+                } else {
+                    outer.shoot_fireball(e.clientX - rect.left, e.clientY - rect.top);
                 }
 
                 outer.cur_skill = null;

@@ -112,9 +112,11 @@ class Settings {
     start() {
         if (this.platform === "ACAPP") {
             this.getinfo_acapp();
-        } else {
+        } else if (this.platform === "WEB") {
             this.getinfo_web();
             this.add_listening_events();
+        } else {
+            console.log("not known what is platform");
         }
     }
 
@@ -248,13 +250,17 @@ class Settings {
         this.$login.show();
     }
 
+    // acapp端一键登录
     acapp_login(appid, redirect_uri, scope, state) {
         let outer = this;
 
         this.root.AcWingOS.api.oauth2.authorize(appid, redirect_uri, scope, state, function (resp) {
             if (resp.result === "success") {
+                // 获取用户信息成功的话就存储用户信息
                 outer.username = resp.username;
                 outer.photo = resp.photo;
+
+                // 打开菜单界面
                 outer.hide();
                 outer.root.menu.show();
             }
