@@ -223,6 +223,7 @@ class Settings {
     // 在远程服务器上登出
     logout_on_remote() {
         if (this.platform === "ACAPP") {
+            // 调用acwing关闭窗口的api
             this.root.AcWingOS.api.window.close();
         } else {
             $.ajax({

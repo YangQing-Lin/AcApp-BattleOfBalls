@@ -22,6 +22,7 @@ class Player extends AcGameObject {
         this.friction = 0.9;  // 阻尼
         this.spent_time = 0;
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
+        this.fireballs = [];  // 自己发出的所有子弹
 
         this.cur_skill = null;
 
@@ -32,6 +33,15 @@ class Player extends AcGameObject {
     }
 
     start() {
+        // 在创建玩家的时候更新玩家人数并且重新绘制文字
+        this.playground.player_count++;
+        this.playground.notice_board.write("已就绪：" + this.playground.player_count + "人");
+
+        if (this.playground.player_count >= 3) {
+            this.playground.state = "fighting";
+            this.playground.notice_board.write("fighting");
+        }
+
         if (this.character === "me") {
             this.add_listening_events();
         } else if (this.character === "robot") {
@@ -52,16 +62,40 @@ class Player extends AcGameObject {
 
         // 监听鼠标右键点击事件，获取鼠标位置
         this.playground.game_map.$canvas.mousedown(function (e) {
+
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return false;
+            }
+
             // 项目在acapp的小窗口上运行会有坐标值的不匹配的问题，这里做一下坐标映射
             // 这里canvas前面不能加&，会报错
             const rect = outer.ctx.canvas.getBoundingClientRect();
             if (e.which === 3) {
-                outer.move_to((e.clientX - rect.left) / outer.playground.scale, (e.clientY - rect.top) / outer.playground.scale);
+                let tx = (e.clientX - rect.left) / outer.playground.scale;
+                let ty = (e.clientY - rect.top) / outer.playground.scale;
+                outer.move_to(tx, ty);
+
+                // 如果是多人模式就要同时发送移动信息
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_move_to(tx, ty);
+                }
             } else if (e.which === 1) {
+                let tx = (e.clientX - rect.left) / outer.playground.scale;
+                let ty = (e.clientY - rect.top) / outer.playground.scale;
                 if (outer.cur_skill === "fireball") {
-                    outer.shoot_fireball((e.clientX - rect.left) / outer.playground.scale, (e.clientY - rect.top) / outer.playground.scale);
+                    let fireball = outer.shoot_fireball(tx, ty);
+
+                    // 如果是多人模式就广播发射火球的行为
+                    if (outer.playground.mode === "multi mode") {
+                        outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                    }
                 } else {
-                    outer.shoot_fireball((e.clientX - rect.left) / outer.playground.scale, (e.clientY - rect.top) / outer.playground.scale);
+                    let fireball = outer.shoot_fireball(tx, ty);
+
+                    if (outer.playground.mode === "multi mode") {
+                        outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                    }
                 }
 
                 outer.cur_skill = null;
@@ -70,6 +104,12 @@ class Player extends AcGameObject {
 
         // q
         $(window).keydown(function (e) {
+
+            // 非战斗状态不能攻击
+            if (outer.playground.state !== "fighting") {
+                return false;
+            }
+
             if (e.which === 81) {
                 outer.cur_skill = "fireball";
                 return false;
@@ -85,7 +125,24 @@ class Player extends AcGameObject {
         let color = "orange";
         let speed = 0.5;
         let move_length = 0.8;
-        new FireBall(this.playground, this, x, y, radius, vx, vy, color, speed, move_length, 0.01);
+
+        let fireball = new FireBall(this.playground, this, x, y, radius, vx, vy, color, speed, move_length, 0.01);
+        // 将新生成的火球放进自己的火球数组里
+        this.fireballs.push(fireball);
+
+        // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
+        return fireball;
+    }
+
+    // 通过uuid来删除火球
+    destroy_fireball(uuid) {
+        for (let i = 0; i < this.fireballs.length; i++) {
+            let fireball = this.fireballs[i];
+            if (fireball.uuid === uuid) {
+                fireball.destroy();
+                break;
+            }
+        }
     }
 
     // 获取两点之间的直线距离
@@ -121,13 +178,23 @@ class Player extends AcGameObject {
             this.on_destroy();
             this.destroy();
             // 敌人死亡后再加入新的敌人
-            this.playground.add_enemy();
+            if (this.character === "robot") {
+                this.playground.add_enemy();
+            }
             return false;
         }
         this.damage_x = Math.cos(angle);
         this.damage_y = Math.sin(angle);
         this.damage_speed = damage * 100;
         this.speed *= 1.1;
+    }
+
+    // 多人模式下玩家接收到被攻击的信息
+    receive_attack(x, y, angle, damage, ball_uuid, attacker) {
+        attacker.destroy_fireball(ball_uuid);
+        this.x = x;
+        this.y = y;
+        this.is_attacked(angle, damage);
     }
 
     update() {
@@ -204,6 +271,7 @@ class Player extends AcGameObject {
         for (let i = 0; i < this.playground.players.length; i++) {
             if (this.playground.players[i] === this) {
                 this.playground.players.splice(i, 1);
+                break;
             }
         }
     }
