@@ -345,6 +345,10 @@ class Particle extends AcGameObject {
                     }
                 } else if (outer.cur_skill === "blink" && outer.blink_coldtime <= outer.eps) {
                     outer.blink(tx, ty);
+
+                    if (outer.playground.mode === "multi mode") {
+                        outer.playground.mps.send_blink(tx, ty);
+                    }
                 } else {
                     let fireball = outer.shoot_fireball(tx, ty);
                     console.log("shoot bullet");
@@ -619,6 +623,10 @@ class Particle extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
+        if (this.character === "me") {
+            this.playground.state = "over";
+        }
+
         for (let i = 0; i < this.playground.players.length; i++) {
             if (this.playground.players[i] === this) {
                 this.playground.players.splice(i, 1);
@@ -769,6 +777,8 @@ class MultiPlayerSocket {
                 outer.receive_shoot_fireball(uuid, data.tx, data.ty, data.ball_uuid);
             } else if (event === "attack") {
                 outer.receive_attack(uuid, data.attackee_uuid, data.x, data.y, data.angle, data.damage, data.ball_uuid);
+            } else if (event === "blink") {
+                outer.receive_blink(uuid, data.tx, data.ty);
             }
         };
     }
@@ -877,6 +887,23 @@ class MultiPlayerSocket {
         let attackee = this.get_player(attackee_uuid);
         if (attacker && attackee) {
             attackee.receive_attack(x, y, angle, damage, ball_uuid, attacker);
+        }
+    }
+
+    send_blink(tx, ty) {
+        let outer = this;
+        this.ws.send(JSON.stringify({
+            'event': "blink",
+            'uuid': outer.uuid,
+            'tx': tx,
+            'ty': ty,
+        }));
+    }
+
+    receive_blink(uuid, tx, ty) {
+        let player = this.get_player(uuid);
+        if (player) {
+            player.blink(tx, ty);
         }
     }
 }class AcGamePlayground {

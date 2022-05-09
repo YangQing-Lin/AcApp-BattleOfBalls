@@ -107,6 +107,10 @@ class Player extends AcGameObject {
                     }
                 } else if (outer.cur_skill === "blink" && outer.blink_coldtime <= outer.eps) {
                     outer.blink(tx, ty);
+
+                    if (outer.playground.mode === "multi mode") {
+                        outer.playground.mps.send_blink(tx, ty);
+                    }
                 } else {
                     let fireball = outer.shoot_fireball(tx, ty);
                     console.log("shoot bullet");
@@ -381,6 +385,10 @@ class Player extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
+        if (this.character === "me") {
+            this.playground.state = "over";
+        }
+
         for (let i = 0; i < this.playground.players.length; i++) {
             if (this.playground.players[i] === this) {
                 this.playground.players.splice(i, 1);

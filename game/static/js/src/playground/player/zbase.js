@@ -107,6 +107,10 @@ class Player extends AcGameObject {
                     }
                 } else if (outer.cur_skill === "blink" && outer.blink_coldtime <= outer.eps) {
                     outer.blink(tx, ty);
+
+                    if (outer.playground.mode === "multi mode") {
+                        outer.playground.mps.send_blink(tx, ty);
+                    }
                 } else {
                     let fireball = outer.shoot_fireball(tx, ty);
                     console.log("shoot bullet");
