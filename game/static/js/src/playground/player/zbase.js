@@ -24,6 +24,7 @@ class Player extends AcGameObject {
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
         this.fireballs = [];  // 自己发出的所有子弹
         this.base_fireball_coldtime = 1;
+        this.base_blink_coldtime = 3;
 
         this.cur_skill = null;
 
@@ -37,6 +38,11 @@ class Player extends AcGameObject {
             this.fireball_coldtime = this.base_fireball_coldtime;
             this.fireball_img = new Image();
             this.fireball_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_9340c86053-fireball.png";
+
+            // 闪现技能冷却时间
+            this.blink_coldtime = this.base_blink_coldtime;
+            this.blink_img = new Image();
+            this.blink_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_daccabdc53-blink.png";
         }
     }
 
@@ -73,7 +79,7 @@ class Player extends AcGameObject {
 
             // 非战斗状态不能移动
             if (outer.playground.state !== "fighting") {
-                return false;
+                return true;
             }
 
             // 项目在acapp的小窗口上运行会有坐标值的不匹配的问题，这里做一下坐标映射
@@ -99,6 +105,8 @@ class Player extends AcGameObject {
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
                     }
+                } else if (outer.cur_skill === "blink" && outer.blink_coldtime <= outer.eps) {
+                    outer.blink(tx, ty);
                 } else {
                     let fireball = outer.shoot_fireball(tx, ty);
                     console.log("shoot bullet");
@@ -112,24 +120,22 @@ class Player extends AcGameObject {
             }
         });
 
-        // q
         $(window).keydown(function (e) {
 
             // 非战斗状态不能攻击
             if (outer.playground.state !== "fighting") {
-                return false;
+                return true;
             }
 
-            // 技能冷却好之前不能放
-            if (outer.fireball_coldtime > outer.eps) {
-                return false;
-            }
-
-            // Q技能
-            if (e.which === 81) {
+            if (e.which === 81 && outer.fireball_coldtime <= outer.eps) {  // Q键
                 outer.cur_skill = "fireball";
                 return false;
+            } else if (e.which === 70 && outer.blink_coldtime <= outer.eps) {  // F键
+                outer.cur_skill = "blink";
+                return false;
             }
+
+            return true;
         });
     }
 
@@ -161,6 +167,22 @@ class Player extends AcGameObject {
                 break;
             }
         }
+    }
+
+    // 闪现技能
+    blink(tx, ty) {
+        let d = this.get_dist(this.x, this.y, tx, ty);
+        // 闪现距离最大为高度的0.6倍
+        d = Math.min(d, 0.6);
+        let angle = Math.atan2(ty - this.y, tx - this.x);
+        this.x += d * Math.cos(angle);
+        this.y += d * Math.sin(angle);
+
+        // 技能进入冷却
+        this.blink_coldtime = this.base_blink_coldtime;
+
+        // 闪现之后停下来
+        this.move_length = 0;
     }
 
     // 获取两点之间的直线距离
@@ -230,6 +252,9 @@ class Player extends AcGameObject {
     update_codetime() {
         this.fireball_coldtime -= this.timedelta / 1000;
         this.fireball_coldtime = Math.max(this.fireball_coldtime, 0);
+
+        this.blink_coldtime -= this.timedelta / 1000;
+        this.blink_coldtime = Math.max(this.blink_coldtime, 0);
     }
 
     // 更新玩家移动
@@ -301,6 +326,11 @@ class Player extends AcGameObject {
 
     // 渲染技能图标和冷却时间蒙版
     render_skill_coldtime() {
+        this.render_fireball_coldtime();
+        this.render_blink_coldtime();
+    }
+
+    render_fireball_coldtime() {
         let x = 1.5, y = 0.9, r = 0.04;
         let scale = this.playground.scale;
 
@@ -313,7 +343,7 @@ class Player extends AcGameObject {
         this.ctx.drawImage(this.fireball_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
         this.ctx.restore();
 
-        // 渲染剩余冷却时间蒙版
+        // 渲染火球剩余冷却和时间蒙版
         if (this.fireball_coldtime > 0) {
             this.ctx.beginPath();
             this.ctx.moveTo(x * scale, y * scale);
@@ -324,9 +354,37 @@ class Player extends AcGameObject {
         }
     }
 
+    render_blink_coldtime() {
+        let x = 1.62, y = 0.9, r = 0.04;
+        let scale = this.playground.scale;
+
+        // 渲染图片
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
+        this.ctx.stroke();
+        this.ctx.clip();
+        this.ctx.drawImage(this.blink_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
+        this.ctx.restore();
+
+        // 渲染闪现剩余冷却和时间蒙版
+        if (this.blink_coldtime > 0) {
+            this.ctx.beginPath();
+            this.ctx.moveTo(x * scale, y * scale);
+            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.blink_coldtime / this.base_blink_coldtime) - Math.PI / 2, true);
+            this.ctx.lineTo(x * scale, y * scale);
+            this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
+            this.ctx.fill();
+        }
+    }
+
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
+        if (this.character === "me") {
+            this.playground.state = "over";
+        }
+
         for (let i = 0; i < this.playground.players.length; i++) {
             if (this.playground.players[i] === this) {
                 this.playground.players.splice(i, 1);
