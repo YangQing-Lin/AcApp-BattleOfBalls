@@ -127,11 +127,95 @@ let AC_GAME_ANIMATION = function (timestamp) {
 // 会将函数的执行时间控制在1/60秒（这一整行是一帧）
 requestAnimationFrame(AC_GAME_ANIMATION);
 
-class GameMap extends AcGameObject {
+class ChatField {
+    constructor(playground) {
+        this.playground = playground;
+
+        this.$history = $(`<div class="ac-game-chat-field-history">history</div>`);
+        this.$input = $(`<input type="text" class="ac-game-chat-field-input">`);
+
+        this.$history.hide();
+        this.$input.hide();
+        this.func_id = null;
+
+        this.playground.$playground.append(this.$history);
+        this.playground.$playground.append(this.$input);
+
+        this.start();
+    }
+
+    start() {
+        this.add_listening_events();
+    }
+
+    add_listening_events() {
+        let outer = this;
+
+        this.$input.keydown(function (e) {
+            if (e.which === 27) {  // ESC键
+                outer.hide_input();
+                return false;
+            } else if (e.which === 13) {  // Enter键
+                let username = outer.playground.root.settings.username;
+                let text = outer.$input.val();
+                if (text) {
+                    outer.$input.val("");
+                    outer.add_message(username, text);
+                }
+                return false;
+            }
+        });
+    }
+
+    // 渲染消息
+    render_message(message) {
+        return $(`<div>${message}</div>`)
+    }
+
+    // 向历史记录里添加信息
+    add_message(username, text) {
+        this.show_history();
+
+        let message = `[${username}] ${text}`;
+        this.$history.append(this.render_message(message));
+        // 每次添加信息后都将滚动条拖到最下面
+        this.$history.scrollTop(this.$history[0].scrollHeight);
+    }
+
+    show_history() {
+        let outer = this;
+        // JQuery的API，用于将$input慢慢显示出来
+        this.$history.fadeIn();
+
+        // 因为下面的监听函数会在3秒后强制执行，所以可能第二次打开输入框会马上关闭历史记录
+        // 这里记录一下监听函数的id，然后每次清空一下就行
+        if (this.func_id) clearTimeout(this.func_id);
+
+        this.func_id = setTimeout(function () {
+            outer.$history.fadeOut();
+            // 3秒后记得删除函数id
+            outer.func_id = null;
+        }, 3000);
+
+    }
+
+    show_input() {
+        this.show_history();
+
+        this.$input.show();
+        this.$input.focus();
+    }
+
+    hide_input() {
+        this.$input.hide();
+        this.playground.game_map.$canvas.focus();
+    }
+}class GameMap extends AcGameObject {
     constructor(playground) {
         super();  // 调用基类的构造函数
         this.playground = playground;
-        this.$canvas = $(`<canvas></canvas>`);
+        // tabindex=0：给canvas绑上监听事件
+        this.$canvas = $(`<canvas tabindex=0></canvas>`);
         this.ctx = this.$canvas[0].getContext('2d');
         this.ctx.canvas.width = this.playground.width;
         this.ctx.canvas.height = this.playground.height;
@@ -139,7 +223,8 @@ class GameMap extends AcGameObject {
     }
 
     start() {
-
+        // 聚焦到当前canvas
+        this.$canvas.focus();
     }
 
     // 动态修改GameMap的长宽
@@ -362,7 +447,21 @@ class Particle extends AcGameObject {
             }
         });
 
-        $(window).keydown(function (e) {
+        // 重新绑定监听对象到小窗口
+        // 之前的监听对象：$(window).keydown(function (e) {
+        this.playground.game_map.$canvas.keydown(function (e) {
+
+            // 打开聊天框（Enter键）
+            if (e.which === 13 && outer.playground.mode === "multi mode") {
+                // 打开聊天框
+                outer.playground.chat_field.show_input();
+            }
+
+            // // 关闭聊天框（ESC键）
+            // if (e.which === 27 && outer.playground.mode === "multi mode") {
+            //     // 关闭聊天框
+            //     outer.playground.chat_field.hide_input();
+            // }
 
             // 非战斗状态不能攻击
             if (outer.playground.state !== "fighting") {
@@ -980,6 +1079,8 @@ class MultiPlayerSocket {
                 this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
             }
         } else if (mode === "multi mode") {
+            // 添加聊天框
+            this.chat_field = new ChatField(this);
             this.mps = new MultiPlayerSocket(this);
             // 使用自己的uuid（自己永远是第一个被加入数组里面的）
             this.mps.uuid = this.players[0].uuid;

@@ -23,7 +23,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
         # 为了方便调试，这里做一个判断，如果加入的玩家不是自己，房间号就从10000开始创建
         # 这样就可以把自己放到单独的房间里，方便调试而不用受到其他玩家的干扰
         start = 0
-        if data['username'] != "阳青_YQ":
+        if data['username'] != "lqc":
             start = 10000
         
         # 暴力枚举所有房间（暂定最多1000个）

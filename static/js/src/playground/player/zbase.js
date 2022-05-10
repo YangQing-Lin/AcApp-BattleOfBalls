@@ -124,7 +124,21 @@ class Player extends AcGameObject {
             }
         });
 
-        $(window).keydown(function (e) {
+        // 重新绑定监听对象到小窗口
+        // 之前的监听对象：$(window).keydown(function (e) {
+        this.playground.game_map.$canvas.keydown(function (e) {
+
+            // 打开聊天框（Enter键）
+            if (e.which === 13 && outer.playground.mode === "multi mode") {
+                // 打开聊天框
+                outer.playground.chat_field.show_input();
+            }
+
+            // // 关闭聊天框（ESC键）
+            // if (e.which === 27 && outer.playground.mode === "multi mode") {
+            //     // 关闭聊天框
+            //     outer.playground.chat_field.hide_input();
+            // }
 
             // 非战斗状态不能攻击
             if (outer.playground.state !== "fighting") {

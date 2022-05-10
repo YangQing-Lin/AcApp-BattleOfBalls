@@ -2,7 +2,8 @@ class GameMap extends AcGameObject {
     constructor(playground) {
         super();  // 调用基类的构造函数
         this.playground = playground;
-        this.$canvas = $(`<canvas></canvas>`);
+        // tabindex=0：给canvas绑上监听事件
+        this.$canvas = $(`<canvas tabindex=0></canvas>`);
         this.ctx = this.$canvas[0].getContext('2d');
         this.ctx.canvas.width = this.playground.width;
         this.ctx.canvas.height = this.playground.height;
@@ -10,7 +11,8 @@ class GameMap extends AcGameObject {
     }
 
     start() {
-
+        // 聚焦到当前canvas
+        this.$canvas.focus();
     }
 
     // 动态修改GameMap的长宽
