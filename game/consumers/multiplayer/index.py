@@ -148,6 +148,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
                 'type': "group_send_event",
                 'event': "message",
                 'uuid': data['uuid'],
+                'username': data['username'],
                 'text': data['text'],
             }
         )

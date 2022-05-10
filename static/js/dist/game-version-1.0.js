@@ -163,7 +163,7 @@ class ChatField {
                     outer.add_message(username, text);
 
                     // 多人模式广播发送消息事件
-                    outer.playground.mps.send_message(text);
+                    outer.playground.mps.send_message(username, text);
                 }
                 return false;
             }
@@ -882,7 +882,7 @@ class MultiPlayerSocket {
             } else if (event === "blink") {
                 outer.receive_blink(uuid, data.tx, data.ty);
             } else if (event === "message") {
-                outer.receive_message(uuid, data.text);
+                outer.receive_message(uuid, data.username, data.text);
             }
         };
     }
@@ -1011,20 +1011,18 @@ class MultiPlayerSocket {
         }
     }
 
-    send_message(text) {
+    send_message(username, text) {
         let outer = this;
         this.ws.send(JSON.stringify({
             'event': "message",
             'uuid': outer.uuid,
+            'username': username,
             'text': text,
         }));
     }
 
-    receive_message(uuid, text) {
-        let player = this.get_player(uuid);
-        if (player) {
-            player.playground.chat_field.add_message(player.username, text);
-        }
+    receive_message(uuid, username, text) {
+        this.playground.chat_field.add_message(username, text);
     }
 }class AcGamePlayground {
     constructor(root) {

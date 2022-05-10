@@ -34,7 +34,7 @@ class ChatField {
                     outer.add_message(username, text);
 
                     // 多人模式广播发送消息事件
-                    outer.playground.mps.send_message(text);
+                    outer.playground.mps.send_message(username, text);
                 }
                 return false;
             }
