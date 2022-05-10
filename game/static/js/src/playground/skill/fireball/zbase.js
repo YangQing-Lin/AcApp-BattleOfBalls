@@ -1,18 +1,18 @@
 class FireBall extends AcGameObject {
-    constructor(playground, player, x, y, radius, vx, vy, color, speed, move_length, damage) {
+    constructor(playground, player, x, y, vx, vy) {
         super();
         this.playground = playground;
         this.ctx = this.playground.game_map.ctx;
         this.player = player;
         this.x = x;
         this.y = y;
-        this.radius = radius;
+        this.radius = 0.01;
         this.vx = vx;
         this.vy = vy;
-        this.color = color;
-        this.speed = speed;
-        this.move_length = move_length;
-        this.damage = damage;
+        this.color = "orange";
+        this.speed = 0.5;
+        this.move_length = 0.8;
+        this.damage = 0.01;
 
         this.eps = 0.01;
     }

@@ -23,26 +23,14 @@ class Player extends AcGameObject {
         this.spent_time = 0;
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
         this.fireballs = [];  // 自己发出的所有子弹
-        this.base_fireball_coldtime = 1;
-        this.base_blink_coldtime = 3;
+
+        this.skill_icon = new SkillIcon(this);
 
         this.cur_skill = null;
 
         if (this.character !== "robot") {
             this.img = new Image();
             this.img.src = this.photo;
-        }
-
-        if (this.character === "me") {
-            // 火球技能冷却时间（单位：秒）
-            this.fireball_coldtime = this.base_fireball_coldtime;
-            this.fireball_img = new Image();
-            this.fireball_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_9340c86053-fireball.png";
-
-            // 闪现技能冷却时间
-            this.blink_coldtime = this.base_blink_coldtime;
-            this.blink_img = new Image();
-            this.blink_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_daccabdc53-blink.png";
         }
     }
 
@@ -97,7 +85,7 @@ class Player extends AcGameObject {
             } else if (e.which === 1) {
                 let tx = (e.clientX - rect.left) / outer.playground.scale;
                 let ty = (e.clientY - rect.top) / outer.playground.scale;
-                if (outer.cur_skill === "fireball" && outer.fireball_coldtime <= outer.eps) {
+                if (outer.cur_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
                     let fireball = outer.shoot_fireball(tx, ty);
                     console.log("shoot fireball");
 
@@ -105,14 +93,14 @@ class Player extends AcGameObject {
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
                     }
-                } else if (outer.cur_skill === "blink" && outer.blink_coldtime <= outer.eps) {
+                } else if (outer.cur_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
                     outer.blink(tx, ty);
 
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_blink(tx, ty);
                     }
                 } else {
-                    let fireball = outer.shoot_fireball(tx, ty);
+                    let fireball = outer.shoot_bullet(tx, ty);
                     console.log("shoot bullet");
 
                     if (outer.playground.mode === "multi mode") {
@@ -133,21 +121,15 @@ class Player extends AcGameObject {
                 outer.playground.chat_field.show_input();
             }
 
-            // // 关闭聊天框（ESC键）
-            // if (e.which === 27 && outer.playground.mode === "multi mode") {
-            //     // 关闭聊天框
-            //     outer.playground.chat_field.hide_input();
-            // }
-
             // 非战斗状态不能攻击
             if (outer.playground.state !== "fighting") {
                 return true;
             }
 
-            if (e.which === 81 && outer.fireball_coldtime <= outer.eps) {  // Q键
+            if (e.which === 81 && outer.skill_icon.fireball_coldtime <= outer.eps) {  // Q键
                 outer.cur_skill = "fireball";
                 return false;
-            } else if (e.which === 70 && outer.blink_coldtime <= outer.eps) {  // F键
+            } else if (e.which === 70 && outer.skill_icon.blink_coldtime <= outer.eps) {  // F键
                 outer.cur_skill = "blink";
                 return false;
             }
@@ -158,21 +140,30 @@ class Player extends AcGameObject {
 
     shoot_fireball(tx, ty) {
         let x = this.x, y = this.y;
-        let radius = 0.01;
         let angle = Math.atan2(ty - this.y, tx - this.x);
         let vx = Math.cos(angle), vy = Math.sin(angle);
-        let color = "orange";
-        let speed = 0.5;
-        let move_length = 0.8;
 
-        let fireball = new FireBall(this.playground, this, x, y, radius, vx, vy, color, speed, move_length, 0.01);
+        let fireball = new FireBall(this.playground, this, x, y, vx, vy);
         // 将新生成的火球放进自己的火球数组里
         this.fireballs.push(fireball);
 
-        this.fireball_coldtime = this.base_fireball_coldtime;
+        this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
 
         // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
         return fireball;
+    }
+
+    shoot_bullet(tx, ty) {
+        let x = this.x, y = this.y;
+        let angle = Math.atan2(ty - this.y, tx - this.x);
+        let vx = Math.cos(angle), vy = Math.sin(angle);
+
+        let bullet = new Bullet(this.playground, this, x, y, vx, vy);
+        // 将新生成的火球放进自己的火球数组里
+        this.fireballs.push(bullet);
+
+        // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
+        return bullet;
     }
 
     // 通过uuid来删除火球
@@ -196,7 +187,7 @@ class Player extends AcGameObject {
         this.y += d * Math.sin(angle);
 
         // 技能进入冷却
-        this.blink_coldtime = this.base_blink_coldtime;
+        this.skill_icon.blink_coldtime = this.skill_icon.base_blink_coldtime;
 
         // 闪现之后停下来
         this.move_length = 0;
@@ -243,7 +234,7 @@ class Player extends AcGameObject {
         this.damage_x = Math.cos(angle);
         this.damage_y = Math.sin(angle);
         this.damage_speed = damage * 100;
-        this.speed *= 1.1;
+        this.speed *= 1 + damage * 10;
     }
 
     // 多人模式下玩家接收到被攻击的信息
@@ -260,7 +251,7 @@ class Player extends AcGameObject {
 
         // 只有自己，并且在fighting状态下才更新冷却时间
         if (this.character === "me" && this.playground.state === "fighting") {
-            this.update_codetime();
+            this.skill_icon.update_coldtime();
         }
 
         this.render();
@@ -271,15 +262,6 @@ class Player extends AcGameObject {
             this.playground.state = "over";
             this.playground.score_board.win();
         }
-    }
-
-    // 更新技能冷却时间
-    update_codetime() {
-        this.fireball_coldtime -= this.timedelta / 1000;
-        this.fireball_coldtime = Math.max(this.fireball_coldtime, 0);
-
-        this.blink_coldtime -= this.timedelta / 1000;
-        this.blink_coldtime = Math.max(this.blink_coldtime, 0);
     }
 
     // 更新玩家移动
@@ -345,61 +327,7 @@ class Player extends AcGameObject {
         }
 
         if (this.character === "me" && this.playground.state === "fighting") {
-            this.render_skill_coldtime();
-        }
-    }
-
-    // 渲染技能图标和冷却时间蒙版
-    render_skill_coldtime() {
-        this.render_fireball_coldtime();
-        this.render_blink_coldtime();
-    }
-
-    render_fireball_coldtime() {
-        let x = 1.5, y = 0.9, r = 0.04;
-        let scale = this.playground.scale;
-
-        // 渲染图片
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
-        this.ctx.stroke();
-        this.ctx.clip();
-        this.ctx.drawImage(this.fireball_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
-        this.ctx.restore();
-
-        // 渲染火球剩余冷却和时间蒙版
-        if (this.fireball_coldtime > 0) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x * scale, y * scale);
-            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.fireball_coldtime / this.base_fireball_coldtime) - Math.PI / 2, true);
-            this.ctx.lineTo(x * scale, y * scale);
-            this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
-            this.ctx.fill();
-        }
-    }
-
-    render_blink_coldtime() {
-        let x = 1.62, y = 0.9, r = 0.04;
-        let scale = this.playground.scale;
-
-        // 渲染图片
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
-        this.ctx.stroke();
-        this.ctx.clip();
-        this.ctx.drawImage(this.blink_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
-        this.ctx.restore();
-
-        // 渲染闪现剩余冷却和时间蒙版
-        if (this.blink_coldtime > 0) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x * scale, y * scale);
-            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.blink_coldtime / this.base_blink_coldtime) - Math.PI / 2, true);
-            this.ctx.lineTo(x * scale, y * scale);
-            this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
-            this.ctx.fill();
+            this.skill_icon.render_skill_coldtime();
         }
     }
 

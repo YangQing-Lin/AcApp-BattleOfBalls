@@ -1,4 +1,4 @@
-class FireBall extends AcGameObject {
+class Bullet extends AcGameObject {
     constructor(playground, player, x, y, vx, vy) {
         super();
         this.playground = playground;
@@ -6,13 +6,13 @@ class FireBall extends AcGameObject {
         this.player = player;
         this.x = x;
         this.y = y;
-        this.radius = 0.01;
+        this.radius = 0.005;
         this.vx = vx;
         this.vy = vy;
-        this.color = "orange";
-        this.speed = 0.5;
-        this.move_length = 0.8;
-        this.damage = 0.01;
+        this.color = "white";
+        this.speed = 0.7;
+        this.move_length = 0.5;
+        this.damage = 0.001;
 
         this.eps = 0.01;
     }
@@ -45,7 +45,7 @@ class FireBall extends AcGameObject {
         this.move_length -= moved;
     }
 
-    // 火球攻击逻辑
+    // 子弹攻击逻辑
     update_attack() {
         for (let i = 0; i < this.playground.players.length; i++) {
             let player = this.playground.players[i];
@@ -74,7 +74,7 @@ class FireBall extends AcGameObject {
         let angle = Math.atan2(player.y - this.y, player.x - this.x);
         player.is_attacked(angle, this.damage);
 
-        // 只有多人模式下才需要广播火球攻击
+        // 只有多人模式下才需要广播子弹攻击
         if (this.playground.mode === "multi mode") {
             this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.uuid);
         }
