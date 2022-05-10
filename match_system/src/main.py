@@ -5,6 +5,11 @@ import sys
 # 改了路径才能引用Django原项目里面的包
 sys.path.insert(0, glob.glob('../../')[0])
 
+from thrift.transport import TSocket
+from thrift.transport import TTransport
+from thrift.protocol import TBinaryProtocol
+from thrift.server import TServer
+
 # 引入自己写的Match
 from match_server.match_service import Match
 # 引入python里面自带的消息队列（线程安全的，不会出现读写冲突）
@@ -12,10 +17,10 @@ from queue import Queue
 from time import sleep
 from threading import Thread
 
-from thrift.transport import TSocket
-from thrift.transport import TTransport
-from thrift.protocol import TBinaryProtocol
-from thrift.server import TServer
+# 调用asgi.py引入的channels里面的函数
+from acapp.asgi import channel_layer
+from asgiref.sync import async_to_sync
+from django.core.cache import cache
 
 
 # 全局的消息队列
@@ -50,6 +55,31 @@ class Pool:
 
     def match_success(self, ps):
         print("Match Success: %s %s %s" % (ps[0].username, ps[1].username, ps[2].username))
+        # 将玩家的uuid写进room名里，之后查找玩家在那个房间可以用cache.keys + 正则表达式
+        room_name = "room-%s-%s-%s" % (ps[0].uuid, ps[1].uuid, ps[2].uuid)
+        players = []
+        for p in ps:
+            async_to_sync(channel_layer.group_add)(room_name, p.channel_name)
+            players.append({
+                'uuid': p.uuid,
+                'username': p.username,
+                'photo': p.photo,
+                'hp': 100,
+            })
+        # 生成room_name之后一定要记得加到数据库里面！！！少了这一行代码我又调了半小时程序……
+        cache.set(room_name, players, 3600)  # 有效时间：1小时
+        for p in ps:
+            # 在匹配服务器里面调用主服务器创建玩家的广播函数
+            async_to_sync(channel_layer.group_send)(
+                room_name,
+                {
+                    'type': "group_send_event",
+                    'event': "create_player",
+                    'uuid': p.uuid,
+                    'username': p.username,
+                    'photo': p.photo,
+                }
+            )
     
     def increase_waiting_time(self):
         for player in self.players:

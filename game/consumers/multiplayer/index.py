@@ -9,15 +9,15 @@ from thrift.transport import TTransport
 from thrift.protocol import TBinaryProtocol
 
 from match_system.src.match_server.match_service import Match
-# from game.models.player.player import Player
-# from channels.db import database_sync_to_async
+# 引入数据库（因为数据库本来是串行操作，但是这里函数用的都是异步，所以要引入database_sync_to_async）
+from game.models.player.player import Player
+from channels.db import database_sync_to_async
 
 class MultiPlayer(AsyncWebsocketConsumer):
     # 创建连接
     async def connect(self):
         await self.accept()
         
-
 
     # 断开连接（但用户离线并不一定会执行这个函数）
     async def disconnect(self, close_code):
@@ -40,15 +40,16 @@ class MultiPlayer(AsyncWebsocketConsumer):
         # Create a client to use the protocol encoder
         client = Match.Client(protocol)
 
-        # def db_get_player():
-        #     return Player.objects.get(user__username=data['username'])
+        # 处理数据库一定要定义一个函数（注意写法）
+        def db_get_player():
+            return Player.objects.get(user__username=data['username'])
 
-        # player = await database_sync_to_async(db_get_player)()
+        player = await database_sync_to_async(db_get_player)()
 
         # Connect!
         transport.open()
 
-        client.add_player(1500, data['uuid'], data['username'], data['photo'], self.channel_name)
+        client.add_player(player.score, data['uuid'], data['username'], data['photo'], self.channel_name)
 
         # Close!
         transport.close()
@@ -117,6 +118,11 @@ class MultiPlayer(AsyncWebsocketConsumer):
 
     # 将data发送到前端（函数名与'type'关键字一致）
     async def group_send_event(self, data):
+        # 更新房间名
+        if not self.room_name:
+            keys = cache.keys('*%s*' % (self.uuid))
+            if keys:
+                self.room_name = keys[0]
         await self.send(text_data=json.dumps(data))
 
 

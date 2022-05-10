@@ -379,7 +379,7 @@ class Particle extends AcGameObject {
 
         if (this.playground.player_count >= 3) {
             this.playground.state = "fighting";
-            this.playground.notice_board.write("fighting");
+            this.playground.notice_board.write("Fighting");
         }
 
         if (this.character === "me") {
