@@ -127,7 +127,6 @@ class Player extends AcGameObject {
         // 重新绑定监听对象到小窗口
         // 之前的监听对象：$(window).keydown(function (e) {
         this.playground.game_map.$canvas.keydown(function (e) {
-
             // 打开聊天框（Enter键）
             if (e.which === 13 && outer.playground.mode === "multi mode") {
                 // 打开聊天框
@@ -236,9 +235,9 @@ class Player extends AcGameObject {
             this.on_destroy();
             this.destroy();
             // 敌人死亡后再加入新的敌人
-            if (this.character === "robot") {
-                this.playground.add_enemy();
-            }
+            // if (this.character === "robot") {
+            //     this.playground.add_enemy();
+            // }
             return false;
         }
         this.damage_x = Math.cos(angle);
@@ -257,6 +256,7 @@ class Player extends AcGameObject {
 
     update() {
         this.update_move();
+        this.update_win();
 
         // 只有自己，并且在fighting状态下才更新冷却时间
         if (this.character === "me" && this.playground.state === "fighting") {
@@ -264,6 +264,13 @@ class Player extends AcGameObject {
         }
 
         this.render();
+    }
+
+    update_win() {
+        if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
+            this.playground.state = "over";
+            this.playground.score_board.win();
+        }
     }
 
     // 更新技能冷却时间
@@ -399,8 +406,9 @@ class Player extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
-        if (this.character === "me") {
+        if (this.character === "me" && this.playground.state === "fighting") {
             this.playground.state = "over";
+            this.playground.score_board.lose();
         }
 
         for (let i = 0; i < this.playground.players.length; i++) {

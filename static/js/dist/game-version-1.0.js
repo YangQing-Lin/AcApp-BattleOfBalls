@@ -68,7 +68,7 @@ class AcGameObject {
         this.timedelta = 0;  // 当前距离上一帧的时间间隔（单位：ms）
         this.uuid = this.create_uuid();
 
-        // console.log(this.uuid);
+        console.log(this.uuid);
     }
 
     // 创建一个唯一编号，用于联机对战识别窗口和用户
@@ -86,6 +86,10 @@ class AcGameObject {
     }
 
     update() {  // 每一帧都会执行一次
+
+    }
+
+    late_update() {  // 在每一帧的最后执行一次
 
     }
 
@@ -118,6 +122,13 @@ let AC_GAME_ANIMATION = function (timestamp) {
             obj.update();  // 如果是子类就会先找子类的update()函数执行，如果没有的话就执行基类的，所以只要继承了这个基类就会每秒自动执行60次update()
         }
     }
+
+    // 在前面都绘制完成了之后调用late_update，这样就能实现将某些对象显示在最上面了
+    for (let i = 1; i < AC_GAME_OBJECTS.length; i++) {
+        let obj = AC_GAME_OBJECTS[i];
+        obj.late_update();
+    }
+
     last_timestamp = timestamp;
 
     // 递归调用，这样就会每一帧调用一次了
@@ -453,7 +464,6 @@ class Particle extends AcGameObject {
         // 重新绑定监听对象到小窗口
         // 之前的监听对象：$(window).keydown(function (e) {
         this.playground.game_map.$canvas.keydown(function (e) {
-
             // 打开聊天框（Enter键）
             if (e.which === 13 && outer.playground.mode === "multi mode") {
                 // 打开聊天框
@@ -562,9 +572,9 @@ class Particle extends AcGameObject {
             this.on_destroy();
             this.destroy();
             // 敌人死亡后再加入新的敌人
-            if (this.character === "robot") {
-                this.playground.add_enemy();
-            }
+            // if (this.character === "robot") {
+            //     this.playground.add_enemy();
+            // }
             return false;
         }
         this.damage_x = Math.cos(angle);
@@ -583,6 +593,7 @@ class Particle extends AcGameObject {
 
     update() {
         this.update_move();
+        this.update_win();
 
         // 只有自己，并且在fighting状态下才更新冷却时间
         if (this.character === "me" && this.playground.state === "fighting") {
@@ -590,6 +601,13 @@ class Particle extends AcGameObject {
         }
 
         this.render();
+    }
+
+    update_win() {
+        if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
+            this.playground.state = "over";
+            this.playground.score_board.win();
+        }
     }
 
     // 更新技能冷却时间
@@ -725,8 +743,9 @@ class Particle extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
-        if (this.character === "me") {
+        if (this.character === "me" && this.playground.state === "fighting") {
             this.playground.state = "over";
+            this.playground.score_board.lose();
         }
 
         for (let i = 0; i < this.playground.players.length; i++) {
@@ -738,7 +757,69 @@ class Particle extends AcGameObject {
     }
 }
 
-class FireBall extends AcGameObject {
+class ScoreBoard extends AcGameObject {
+    constructor(playground) {
+        super();
+        this.playground = playground;
+        this.ctx = this.playground.game_map.ctx;
+
+        // win：胜利，lose：失败
+        this.state = null
+
+        this.win_img = new Image();
+        this.win_img.src = "https://cdn.acwing.com/media/article/image/2021/12/17/1_8f58341a5e-win.png";
+
+        this.lose_img = new Image();
+        this.lose_img.src = "https://cdn.acwing.com/media/article/image/2021/12/17/1_9254b5f95e-lose.png";
+    }
+
+    start() {
+    }
+
+    add_listening_events() {
+        let outer = this;
+        let $canvas = this.playground.game_map.$canvas;
+
+        // 这里不需要用`click.${outer.uuid}`来手动移除监听事件
+        // 因为这个事件在执行的时候会调用outer.playground.hide();
+        // 这个函数会把整个$canvas移除掉，那么监听事件本身就不存在了
+        $canvas.on('click', function () {
+            outer.playground.hide();
+            outer.playground.root.menu.show();
+        });
+    }
+
+    win() {
+        this.state = "win";
+
+        let outer = this;
+        setTimeout(function () {
+            outer.add_listening_events();
+        }, 1000);
+    }
+
+    lose() {
+        this.state = "lose";
+
+        let outer = this;
+        setTimeout(function () {
+            outer.add_listening_events();
+        }, 1000);
+    }
+
+    late_update() {
+        this.render();
+    }
+
+    render() {
+        let len = this.playground.height / 2;
+        if (this.state === "win") {
+            this.ctx.drawImage(this.win_img, this.playground.width / 2 - len / 2, this.playground.height / 2 - len / 2, len, len);
+        } else if (this.state === "lose") {
+            this.ctx.drawImage(this.lose_img, this.playground.width / 2 - len / 2, this.playground.height / 2 - len / 2, len, len);
+        }
+    }
+}class FireBall extends AcGameObject {
     constructor(playground, player, x, y, radius, vx, vy, color, speed, move_length, damage) {
         super();
         this.playground = playground;
@@ -1046,13 +1127,31 @@ class MultiPlayerSocket {
         return colors[Math.floor(Math.random() * colors.length)];
     }
 
+    // 创建一个唯一编号用来准确移除resize监听函数
+    create_uuid() {
+        let res = "";
+        for (let i = 0; i < 8; i++) {
+            let x = parseInt(Math.floor(Math.random() * 10)); // 返回[0, 1)
+            res += x;
+        }
+        return res;
+    }
+
     start() {
         let outer = this;
 
+        let uuid = this.create_uuid();
         // 用户改变窗口大小的时候就会触发这个事件
-        $(window).resize(function () {
+        // 用on来绑定监听函数，之后就可以用off来移除
+        $(window).on(`resize.${uuid}`, function () {
             outer.resize();
         });
+
+        if (this.root.AcWingOS) {
+            this.root.AcWingOS.api.window.on_close(function () {
+                $(window).off(`resize.${uuid}`);
+            });
+        }
     }
 
     // 让界面的长宽比固定为16：9，并且等比例放到最大
@@ -1084,6 +1183,7 @@ class MultiPlayerSocket {
         this.mode = mode;
         this.state = "waiting";  // waiting -> fighting -> over
         this.notice_board = new NoticeBoard(this);
+        this.score_board = new ScoreBoard(this);
         this.player_count = 0;
 
         this.resize();
@@ -1112,6 +1212,30 @@ class MultiPlayerSocket {
     }
 
     hide() {  // 关闭playground界面
+        while (this.players && this.players.length > 0) {
+            // AcGameObject.destroy() ----> Player.on_destroy()
+            //                          \--> AC_GAME_OBJECTS.splice(i, 1)
+            this.players[0].destroy();
+        }
+
+        if (this.game_map) {
+            this.game_map.destroy();
+            this.game_map = null;
+        }
+
+        if (this.notice_board) {
+            this.notice_board.destroy();
+            this.notice_board = null;
+        }
+
+        if (this.score_board) {
+            this.score_board.destroy();
+            this.score_board = null;
+        }
+
+        // 清空当前的html对象
+        this.$playground.empty();
+
         this.$playground.hide();
     }
 }class Settings {

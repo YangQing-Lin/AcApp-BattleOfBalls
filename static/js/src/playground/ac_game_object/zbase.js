@@ -8,7 +8,7 @@ class AcGameObject {
         this.timedelta = 0;  // 当前距离上一帧的时间间隔（单位：ms）
         this.uuid = this.create_uuid();
 
-        // console.log(this.uuid);
+        console.log(this.uuid);
     }
 
     // 创建一个唯一编号，用于联机对战识别窗口和用户
@@ -26,6 +26,10 @@ class AcGameObject {
     }
 
     update() {  // 每一帧都会执行一次
+
+    }
+
+    late_update() {  // 在每一帧的最后执行一次
 
     }
 
@@ -58,6 +62,13 @@ let AC_GAME_ANIMATION = function (timestamp) {
             obj.update();  // 如果是子类就会先找子类的update()函数执行，如果没有的话就执行基类的，所以只要继承了这个基类就会每秒自动执行60次update()
         }
     }
+
+    // 在前面都绘制完成了之后调用late_update，这样就能实现将某些对象显示在最上面了
+    for (let i = 1; i < AC_GAME_OBJECTS.length; i++) {
+        let obj = AC_GAME_OBJECTS[i];
+        obj.late_update();
+    }
+
     last_timestamp = timestamp;
 
     // 递归调用，这样就会每一帧调用一次了
