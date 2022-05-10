@@ -32,6 +32,9 @@ class ChatField {
                 if (text) {
                     outer.$input.val("");
                     outer.add_message(username, text);
+
+                    // 多人模式广播发送消息事件
+                    outer.playground.mps.send_message(text);
                 }
                 return false;
             }

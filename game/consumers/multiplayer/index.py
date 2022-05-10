@@ -139,6 +139,18 @@ class MultiPlayer(AsyncWebsocketConsumer):
                 'ty': data['ty'],
             }
         )
+
+
+    async def message(self, data):
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "message",
+                'uuid': data['uuid'],
+                'text': data['text'],
+            }
+        )
     
 
     # 处理前端向后端发的请求
@@ -155,3 +167,5 @@ class MultiPlayer(AsyncWebsocketConsumer):
             await self.attack(data)
         elif event == "blink":
             await self.blink(data)
+        elif event == "message":
+            await self.message(data)
