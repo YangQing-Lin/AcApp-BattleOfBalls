@@ -609,29 +609,44 @@ class Particle extends AcGameObject {
                 return true;
             }
 
-            outer.fsvjoy.freshing();
-            outer.move_length = 0;
-
             const rect = outer.ctx.canvas.getBoundingClientRect();
             let tx = (e.changedTouches[0].clientX - rect.left) / outer.playground.scale;
             let ty = (e.changedTouches[0].clientY - rect.top) / outer.playground.scale;
             let touch_skill = outer.skill_icon.get_touch_skill(tx, ty);
             let ttx = Math.cos(outer.angle) * 10;
             let tty = Math.sin(outer.angle) * 10;
+
+            // 操作摇杆的手抬起来的时候需要回归摇杆位置
+            // 如果是多人模式的话还要广播一个原地不动的命令
+            if (tx <= 0.5 && ty >= 0.5) {
+                outer.fsvjoy.freshing();
+                outer.move_length = 0;
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_stop_player();
+                }
+                return false;
+            }
+
+            // 如果触摸的位置在技能区的话就判断点击的技能并释放
             if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
-                outer.shoot_fireball(ttx, tty);
+                let fireball = outer.shoot_fireball(ttx, tty);
 
                 // 如果是多人模式就广播发射火球的行为
                 if (outer.playground.mode === "multi mode") {
-                    outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                    outer.playground.mps.send_shoot_fireball(ttx, tty, fireball.uuid);
                 }
             } else if (touch_skill === "normal_attack") {
-                outer.shoot_bullet(ttx, tty);
+                let bullet = outer.shoot_bullet(ttx, tty);
+
+                // 如果是多人模式就广播发射子弹的行为
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_bullet(ttx, tty, bullet.uuid);
+                }
             } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
                 outer.blink(ttx, tty);
 
                 if (outer.playground.mode === "multi mode") {
-                    outer.playground.mps.send_blink(tx, ty);
+                    outer.playground.mps.send_blink(ttx, tty);
                 }
             }
         });
@@ -659,6 +674,11 @@ class Particle extends AcGameObject {
                 let ttx = Math.cos(outer.angle) * 10;
                 let tty = Math.sin(outer.angle) * 10;
                 outer.move_to(ttx, tty);
+
+                // 如果是多人模式就要同时发送移动信息
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_move_to(ttx, tty);
+                }
             }
         });
 
@@ -709,10 +729,10 @@ class Particle extends AcGameObject {
                         outer.playground.mps.send_blink(tx, ty);
                     }
                 } else {
-                    let fireball = outer.shoot_bullet(tx, ty);
+                    let bullet = outer.shoot_bullet(tx, ty);
 
                     if (outer.playground.mode === "multi mode") {
-                        outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                        outer.playground.mps.send_shoot_bullet(tx, ty, bullet.uuid);
                     }
                 }
 
@@ -824,7 +844,7 @@ class Particle extends AcGameObject {
         this.vy = Math.sin(this.angle);  // 纵向速度
     }
 
-    is_attacked(angle, damage) {
+    is_attacked(angle, damage, hp_damage) {
         // 每次被击中先绘制粒子效果
         for (let i = 0; i < 20 + Math.random() * 8; i++) {
             let x = this.x, y = this.y;
@@ -851,11 +871,11 @@ class Particle extends AcGameObject {
     }
 
     // 多人模式下玩家接收到被攻击的信息
-    receive_attack(x, y, angle, damage, ball_uuid, attacker) {
+    receive_attack(x, y, angle, damage, hp_damage, ball_uuid, attacker) {
         attacker.destroy_fireball(ball_uuid);
         this.x = x;
         this.y = y;
-        this.is_attacked(angle, damage);
+        this.is_attacked(angle, damage, hp_damage);
     }
 
     update() {
@@ -1040,6 +1060,7 @@ class ScoreBoard extends AcGameObject {
         this.speed = 0.7;
         this.move_length = 0.5;
         this.damage = 0.001;
+        this.hp_damage = 2.5;
 
         this.eps = 0.01;
     }
@@ -1103,7 +1124,7 @@ class ScoreBoard extends AcGameObject {
 
         // 只有多人模式下才需要广播子弹攻击
         if (this.playground.mode === "multi mode") {
-            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.uuid);
+            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.hp_damage, this.uuid);
         }
 
         this.destroy();
@@ -1146,6 +1167,7 @@ class FireBall extends AcGameObject {
         this.speed = 0.5;
         this.move_length = 0.8;
         this.damage = 0.01;
+        this.hp_damage = 25;
 
         this.eps = 0.01;
     }
@@ -1209,7 +1231,7 @@ class FireBall extends AcGameObject {
 
         // 只有多人模式下才需要广播火球攻击
         if (this.playground.mode === "multi mode") {
-            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.uuid);
+            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.hp_damage, this.uuid);
         }
 
         this.destroy();
@@ -1433,11 +1455,15 @@ class SkillIcon extends AcGameObject {
             } else if (event === "shoot_fireball") {
                 outer.receive_shoot_fireball(uuid, data.tx, data.ty, data.ball_uuid);
             } else if (event === "attack") {
-                outer.receive_attack(uuid, data.attackee_uuid, data.x, data.y, data.angle, data.damage, data.ball_uuid);
+                outer.receive_attack(uuid, data.attackee_uuid, data.x, data.y, data.angle, data.damage, data.hp_damage, data.ball_uuid);
             } else if (event === "blink") {
                 outer.receive_blink(uuid, data.tx, data.ty);
             } else if (event === "message") {
                 outer.receive_message(uuid, data.username, data.text);
+            } else if (event === "shoot_bullet") {
+                outer.receive_shoot_bullet(uuid, data.tx, data.ty, data.bullet_uuid);
+            } else if (event === "stop") {
+                outer.receive_stop_player(uuid);
             }
         };
     }
@@ -1527,7 +1553,7 @@ class SkillIcon extends AcGameObject {
 
     // attackee_uuid：被攻击者的uuid
     // 被击中的同时向所有窗口发送数据，修正被击中玩家位置、角度、上海、火球uuid
-    send_attack(attackee_uuid, x, y, angle, damage, ball_uuid) {
+    send_attack(attackee_uuid, x, y, angle, damage, hp_damage, ball_uuid) {
         let outer = this;
         this.ws.send(JSON.stringify({
             'event': "attack",
@@ -1537,15 +1563,17 @@ class SkillIcon extends AcGameObject {
             'y': y,
             'angle': angle,
             'damage': damage,
+            'hp_damage': hp_damage,
             'ball_uuid': ball_uuid,
         }));
     }
 
-    receive_attack(uuid, attackee_uuid, x, y, angle, damage, ball_uuid) {
+    receive_attack(uuid, attackee_uuid, x, y, angle, damage, hp_damage, ball_uuid) {
         let attacker = this.get_player(uuid);
         let attackee = this.get_player(attackee_uuid);
         if (attacker && attackee) {
-            attackee.receive_attack(x, y, angle, damage, ball_uuid, attacker);
+            // 虽然名字相同，但这里调用的是被攻击者自己的函数，写在Player类里面
+            attackee.receive_attack(x, y, angle, damage, hp_damage, ball_uuid, attacker);
         }
     }
 
@@ -1578,6 +1606,41 @@ class SkillIcon extends AcGameObject {
 
     receive_message(uuid, username, text) {
         this.playground.chat_field.add_message(username, text);
+    }
+
+    send_shoot_bullet(tx, ty, bullet_uuid) {
+        let outer = this;
+        this.ws.send(JSON.stringify({
+            'event': "shoot_bullet",
+            'uuid': outer.uuid,
+            'tx': tx,
+            'ty': ty,
+            'bullet_uuid': bullet_uuid,
+        }));
+    }
+
+    receive_shoot_bullet(uuid, tx, ty, bullet_uuid) {
+        let player = this.get_player(uuid);
+        if (player) {
+            // player/zbase.js 里面 return fireball; 的作用就体现出来了
+            let bullet = player.shoot_bullet(tx, ty);
+            bullet.uuid = bullet_uuid;
+        }
+    }
+
+    send_stop_player(uuid) {
+        let outer = this;
+        this.ws.send(JSON.stringify({
+            'event': "stop",
+            'uuid': outer.uuid,
+        }));
+    }
+
+    receive_stop_player(uuid) {
+        let player = this.get_player(uuid);
+        if (player) {
+            player.move_length = 0;
+        }
     }
 }class AcGamePlayground {
     constructor(root) {

@@ -13,6 +13,7 @@ class FireBall extends AcGameObject {
         this.speed = 0.5;
         this.move_length = 0.8;
         this.damage = 0.01;
+        this.hp_damage = 25;
 
         this.eps = 0.01;
     }
@@ -76,7 +77,7 @@ class FireBall extends AcGameObject {
 
         // 只有多人模式下才需要广播火球攻击
         if (this.playground.mode === "multi mode") {
-            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.uuid);
+            this.playground.mps.send_attack(player.uuid, player.x, player.y, angle, this.damage, this.hp_damage, this.uuid);
         }
 
         this.destroy();

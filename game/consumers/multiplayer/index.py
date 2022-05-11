@@ -165,7 +165,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
 
         for player in players:
             if player['uuid'] == data['attackee_uuid']:
-                player['hp'] -= 25
+                player['hp'] -= data['hp_damage']
         
         # 剩余玩家数
         remain_cnt = 0
@@ -203,6 +203,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
                 'y': data['y'],
                 'angle': data['angle'],
                 'damage': data['damage'],
+                'hp_damage': data['hp_damage'],
                 'ball_uuid': data['ball_uuid'],
             }
         )
@@ -232,6 +233,31 @@ class MultiPlayer(AsyncWebsocketConsumer):
                 'text': data['text'],
             }
         )
+
+
+    async def shoot_bullet(self, data):
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "shoot_bullet",
+                'uuid': data['uuid'],
+                'tx': data['tx'],
+                'ty': data['ty'],
+                'bullet_uuid': data['bullet_uuid'],
+            }
+        )
+
+
+    async def stop(self, data):
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "stop",
+                'uuid': data['uuid'],
+            }
+        )
     
 
     # 处理前端向后端发的请求
@@ -250,3 +276,7 @@ class MultiPlayer(AsyncWebsocketConsumer):
             await self.blink(data)
         elif event == "message":
             await self.message(data)
+        elif event == "shoot_bullet":
+            await self.shoot_bullet(data)
+        elif event == "stop":
+            await self.stop(data)

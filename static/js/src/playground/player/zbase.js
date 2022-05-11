@@ -89,29 +89,44 @@ class Player extends AcGameObject {
                 return true;
             }
 
-            outer.fsvjoy.freshing();
-            outer.move_length = 0;
-
             const rect = outer.ctx.canvas.getBoundingClientRect();
             let tx = (e.changedTouches[0].clientX - rect.left) / outer.playground.scale;
             let ty = (e.changedTouches[0].clientY - rect.top) / outer.playground.scale;
             let touch_skill = outer.skill_icon.get_touch_skill(tx, ty);
             let ttx = Math.cos(outer.angle) * 10;
             let tty = Math.sin(outer.angle) * 10;
+
+            // 操作摇杆的手抬起来的时候需要回归摇杆位置
+            // 如果是多人模式的话还要广播一个原地不动的命令
+            if (tx <= 0.5 && ty >= 0.5) {
+                outer.fsvjoy.freshing();
+                outer.move_length = 0;
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_stop_player();
+                }
+                return false;
+            }
+
+            // 如果触摸的位置在技能区的话就判断点击的技能并释放
             if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
-                outer.shoot_fireball(ttx, tty);
+                let fireball = outer.shoot_fireball(ttx, tty);
 
                 // 如果是多人模式就广播发射火球的行为
                 if (outer.playground.mode === "multi mode") {
-                    outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                    outer.playground.mps.send_shoot_fireball(ttx, tty, fireball.uuid);
                 }
             } else if (touch_skill === "normal_attack") {
-                outer.shoot_bullet(ttx, tty);
+                let bullet = outer.shoot_bullet(ttx, tty);
+
+                // 如果是多人模式就广播发射子弹的行为
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_bullet(ttx, tty, bullet.uuid);
+                }
             } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
                 outer.blink(ttx, tty);
 
                 if (outer.playground.mode === "multi mode") {
-                    outer.playground.mps.send_blink(tx, ty);
+                    outer.playground.mps.send_blink(ttx, tty);
                 }
             }
         });
@@ -139,6 +154,11 @@ class Player extends AcGameObject {
                 let ttx = Math.cos(outer.angle) * 10;
                 let tty = Math.sin(outer.angle) * 10;
                 outer.move_to(ttx, tty);
+
+                // 如果是多人模式就要同时发送移动信息
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_move_to(ttx, tty);
+                }
             }
         });
 
@@ -189,10 +209,10 @@ class Player extends AcGameObject {
                         outer.playground.mps.send_blink(tx, ty);
                     }
                 } else {
-                    let fireball = outer.shoot_bullet(tx, ty);
+                    let bullet = outer.shoot_bullet(tx, ty);
 
                     if (outer.playground.mode === "multi mode") {
-                        outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                        outer.playground.mps.send_shoot_bullet(tx, ty, bullet.uuid);
                     }
                 }
 
@@ -304,7 +324,7 @@ class Player extends AcGameObject {
         this.vy = Math.sin(this.angle);  // 纵向速度
     }
 
-    is_attacked(angle, damage) {
+    is_attacked(angle, damage, hp_damage) {
         // 每次被击中先绘制粒子效果
         for (let i = 0; i < 20 + Math.random() * 8; i++) {
             let x = this.x, y = this.y;
@@ -331,11 +351,11 @@ class Player extends AcGameObject {
     }
 
     // 多人模式下玩家接收到被攻击的信息
-    receive_attack(x, y, angle, damage, ball_uuid, attacker) {
+    receive_attack(x, y, angle, damage, hp_damage, ball_uuid, attacker) {
         attacker.destroy_fireball(ball_uuid);
         this.x = x;
         this.y = y;
-        this.is_attacked(angle, damage);
+        this.is_attacked(angle, damage, hp_damage);
     }
 
     update() {
