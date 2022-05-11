@@ -84,6 +84,11 @@ class Player extends AcGameObject {
         });
 
         this.playground.game_map.$canvas.on("touchend", function (e) {
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return true;
+            }
+
             outer.fsvjoy.freshing();
             outer.move_length = 0;
 
@@ -109,7 +114,6 @@ class Player extends AcGameObject {
                     outer.playground.mps.send_blink(tx, ty);
                 }
             }
-
         });
 
         this.playground.game_map.$canvas.on(`touchmove`, function (e) {
