@@ -45,7 +45,7 @@ class ScoreBoard extends AcGameObject {
         let outer = this;
         setTimeout(function () {
             outer.add_listening_events();
-        }, 1000);
+        }, 500);
     }
 
     late_update() {

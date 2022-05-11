@@ -1,4 +1,100 @@
-class AcGameMenu {
+class FullScreen {
+    /**
+     * @description: 全屏初始化
+     * @param {Function} fn 用户浏览器不支持全屏的回调
+     */
+    constructor(fn) {
+        this.prefixName = ""; // 浏览器前缀
+        this.isFullscreenData = true; // 浏览器是否支持全屏
+        this.isFullscreen(fn);
+    }
+    /**
+     * @description: 将传进来的元素全屏
+     * @param {String} domName 要全屏的dom名称
+     */
+    Fullscreen(domName) {
+        const element = document.querySelector(domName);
+        const methodName =
+            this.prefixName === ""
+                ? "requestFullscreen"
+                : `${this.prefixName}RequestFullScreen`;
+        element[methodName]();
+    }
+    // 退出全屏
+    exitFullscreen() {
+        const methodName =
+            this.prefixName === ""
+                ? "exitFullscreen"
+                : `${this.prefixName}ExitFullscreen`;
+        document[methodName]();
+    }
+    /**
+     * @description: 监听进入/离开全屏
+     * @param {Function} enter 进入全屏的回调
+     *  @param {Function} quit 离开全屏的回调
+     */
+    screenChange(enter, quit) {
+        if (!this.isFullscreenData) return;
+        const methodName = `on${this.prefixName}fullscreenchange`;
+        document[methodName] = e => {
+            if (this.isElementFullScreen()) {
+                enter && enter(e); // 进入全屏回调
+            } else {
+                quit && quit(e); // 离开全屏的回调
+            }
+        };
+    }
+    /**
+     * @description: 浏览器无法进入全屏时触发,可能是技术原因，也可能是用户拒绝：比如全屏请求不是在事件处理函数中调用,会在这里拦截到错误
+     * @param {Function} enterErrorFn 回调
+     */
+    screenError(enterErrorFn) {
+        const methodName = `on${this.prefixName}fullscreenerror`;
+        document[methodName] = e => {
+            enterErrorFn && enterErrorFn(e);
+        };
+    }
+    /**
+     * @description: 是否支持全屏+判断浏览器前缀
+     * @param {Function} fn 不支持全屏的回调函数 这里设了一个默认值
+     */
+    isFullscreen(fn) {
+        let fullscreenEnabled;
+        // 判断浏览器前缀
+        if (document.fullscreenEnabled) {
+            fullscreenEnabled = document.fullscreenEnabled;
+        } else if (document.webkitFullscreenEnabled) {
+            fullscreenEnabled = document.webkitFullscreenEnabled;
+            this.prefixName = "webkit";
+        } else if (document.mozFullScreenEnabled) {
+            fullscreenEnabled = document.mozFullScreenEnabled;
+            this.prefixName = "moz";
+        } else if (document.msFullscreenEnabled) {
+            fullscreenEnabled = document.msFullscreenEnabled;
+            this.prefixName = "ms";
+        }
+        if (!fullscreenEnabled) {
+            this.isFullscreenData = false;
+            fn && fn(); // 执行不支持全屏的回调
+        }
+    }
+    /**
+     * @description: 检测有没有元素处于全屏状态
+     * @return 布尔值
+     */
+    isElementFullScreen() {
+        const fullscreenElement =
+            document.fullscreenElement ||
+            document.msFullscreenElement ||
+            document.mozFullScreenElement ||
+            document.webkitFullscreenElement;
+        if (fullscreenElement === null) {
+            return false; // 当前没有元素在全屏状态
+        } else {
+            return true; // 有元素在全屏状态
+        }
+    }
+}class AcGameMenu {
     // root就是web.html里的ac_game对象
     constructor(root) {
         this.root = root;
@@ -14,6 +110,10 @@ class AcGameMenu {
             多人模式
         </div>
         </br>
+        <div class="ac-game-menu-field-item ac-game-playground-item-fullscreen">
+            全屏
+        </div>
+        </br>
         <div class="ac-game-menu-field-item ac-game-menu-field-item-settings">
             退出
         </div>
@@ -27,6 +127,8 @@ class AcGameMenu {
         this.$single_mode = this.$menu.find('.ac-game-menu-field-item-single-mode');
         this.$multi_mode = this.$menu.find('.ac-game-menu-field-item-multi-mode');
         this.$settings = this.$menu.find('.ac-game-menu-field-item-settings');
+
+        this.$fullscreen = this.$menu.find('.ac-game-playground-item-fullscreen');
 
         this.start();
     }
@@ -47,6 +149,15 @@ class AcGameMenu {
         });
         this.$settings.click(function () {
             outer.root.settings.logout_on_remote();
+        });
+        this.$fullscreen.click(function () {
+            let fullscreen = new FullScreen(() => {
+                console.log("不支持");
+            });
+            fullscreen.screenError(e => {
+                console.log("进入全屏失败:", e);
+            });
+            fullscreen.Fullscreen("#ac_game_123");
         });
     }
 
@@ -222,7 +333,170 @@ class ChatField {
         this.$input.hide();
         this.playground.game_map.$canvas.focus();
     }
-}class GameMap extends AcGameObject {
+}class Fsvjoy extends AcGameObject {
+    constructor(player) {
+        super();
+        this.player = player;
+        this.playground = this.player.playground;
+        this.ctx = this.playground.game_map.ctx;
+        this.rockerbg_x = 0.20;
+        this.rockerbg_y = 0.78;
+        this.base_rocker_x = this.rockerbg_x;
+        this.base_rocker_y = this.rockerbg_y;
+        this.rocker_x = this.base_rocker_x;
+        this.rocker_y = this.base_rocker_y;
+
+        this.rockerbg_r = 0.12;
+        this.rocker_r = 0.04;
+
+        //虚拟控制器
+        // this.rockerbg = new PIXI.Graphics();//绘制摇杆背景
+        // this.rockerbg.lineStyle(0);
+        // this.rockerbg.beginFill(0x000000, 0.3);
+        // this.radius = Math.max(phoneWidth, phoneHeight) / 10;
+        // this.rockerbg.drawCircle(0, 0, this.radius);
+        // this.rockerbg.endFill();
+        // this.parent.addChild(this.rockerbg);
+        // this.rocker = new PIXI.Graphics();//绘制摇杆
+        // this.rocker.lineStyle(0);
+        // this.rocker.beginFill(0xf0f0f0, 0.7);
+        // this.rocker.drawCircle(0, 0, this.rockerbg.height / 8);
+        // this.rocker.endFill();
+        // this.rockerbg.addChild(this.rocker);
+        // this.rockerbg.visible = false;
+
+        // this.obj = null;
+        // this.speed = { x: 0, y: 0 };
+        // app.stage.interactive = true;//开启舞台交互
+
+    }
+
+    setobj(role) {
+        this.obj = role;
+    }
+
+    getSpeed() {
+        return this.speed;
+    }
+
+    start() {
+        // this.add_listening_events();
+    }
+
+    freshing() {
+        this.rocker_x = this.base_rocker_x;
+        this.rocker_y = this.base_rocker_y;
+    }
+
+    late_update() {
+        this.render();
+    }
+
+    render() {
+        this.draw_rockerbg();
+        this.draw_rocker();
+    }
+
+    draw_rockerbg() {
+        let scale = this.playground.scale;
+
+        this.ctx.beginPath();
+        this.ctx.arc(this.rockerbg_x * scale, this.rockerbg_y * scale, this.rockerbg_r * scale, 0, Math.PI * 2, false);
+        this.ctx.fillStyle = "rgba(192, 192, 192, 0.2)";
+        this.ctx.fill();
+    }
+
+    draw_rocker() {
+        let scale = this.playground.scale;
+
+        this.ctx.beginPath();
+        this.ctx.arc(this.rocker_x * scale, this.rocker_y * scale, this.rocker_r * scale, 0, Math.PI * 2, false);
+        this.ctx.fillStyle = "white";
+        this.ctx.fill();
+    }
+
+    // add_listening_events() {
+    //     let outer = this;
+
+    //     app.stage.on("pointerdown", function (event) {
+    //         //在鼠标按下位置显示控制器
+    //         let pos = event.data.getLocalPosition(app.stage);
+    //         rockerbg.x = pos.x;
+    //         rockerbg.y = pos.y;
+    //         rockerbg.visible = true;
+    //     });
+
+    //     app.stage.on("pointerup", function () {
+    //         //鼠标抬起时控制器隐藏,速度归零
+    //         rocker.x = 0;
+    //         rocker.y = 0;
+    //         rockerbg.visible = false;
+    //         speed = {
+    //             x: 0, y: 0
+    //         };
+    //     });
+
+    //     rocker.interactive = true;//开启摇杆交互
+    //     rocker.on("pointermove", function (event) {
+    //         //利用判断控制器在控制器背景原点的方向进行设置角色移动方向
+    //         let pos = event.data.getLocalPosition(app.stage);
+    //         let A = rockerbg.x - pos.x;//摇杆起始点与鼠标X轴距离
+    //         let B = rockerbg.y - pos.y;//摇杆起始点与鼠标Y轴距离
+    //         let Z = radius;//控制器背景的半径
+    //         let X = pos.x - rockerbg.x;//获取鼠标X轴位置
+    //         let Y = pos.y - rockerbg.y;//获取鼠标Y轴位置
+    //         if (Z * Z < A * A + B * B) {
+    //             //判断鼠标位置是否超出摇杆移动范围
+    //             let angle = Math.atan((pos.y - rockerbg.y) / (pos.x - rockerbg.x));//计算鼠标与摇杆起始点角度
+    //             if (pos.x < rockerbg.x) {
+    //                 //判断鼠标是否在摇杆左侧
+    //                 X = -Z * Math.cos(angle);
+    //                 Y = -Z * Math.sin(angle);
+    //             } else {
+    //                 //判断鼠标是否在摇杆左侧
+    //                 X = Z * Math.cos(angle);
+    //                 Y = Z * Math.sin(angle);
+    //             }
+    //         }
+    //         speed = {
+    //             x: 0, y: 0
+    //         };
+    //         let movescope = rockerbg.width / 6;//设置控制器移动的最小范围（当超过这个值时则可设置方向与速度）
+    //         if (Math.abs(X) > Math.abs(Y) && Math.abs(X) > movescope) {
+
+    //             if (X < 0) {
+
+    //                 obj.moveState = true;
+    //                 obj.direction = "a";
+    //                 speed.x = -3;
+    //             } else if (X > 0) {
+
+    //                 obj.moveState = true;
+    //                 obj.direction = "d";
+    //                 speed.x = 3;
+    //             }
+    //         } else if (Math.abs(X) < Math.abs(Y) && Math.abs(Y) > movescope) {
+
+    //             if (Y < 0) {
+
+    //                 obj.moveState = true;
+    //                 obj.direction = "w";
+    //                 speed.y = -3;
+    //             } else if (Y > 0) {
+
+    //                 obj.moveState = true;
+    //                 obj.direction = "s";
+    //                 speed.y = 3;
+    //             }
+    //         }
+    //         rocker.x = X;
+    //         rocker.y = Y;
+    //     });
+    // }
+
+}
+
+class GameMap extends AcGameObject {
     constructor(playground) {
         super();  // 调用基类的构造函数
         this.playground = playground;
@@ -237,6 +511,17 @@ class ChatField {
     start() {
         // 聚焦到当前canvas
         this.$canvas.focus();
+
+        this.add_listening_events();
+    }
+
+    add_listening_events() {
+        let outer = this;
+
+        // 关闭右键菜单功能
+        this.playground.game_map.$canvas.on("contextmenu", function () {
+            return false;
+        });
     }
 
     // 动态修改GameMap的长宽
@@ -358,12 +643,12 @@ class Particle extends AcGameObject {
         this.spent_time = 0;
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
         this.fireballs = [];  // 自己发出的所有子弹
-
-        this.skill_icon = new SkillIcon(this);
+        this.angle = 0;  // 玩家朝向
 
         this.cur_skill = null;
 
         if (this.character !== "robot") {
+            this.skill_icon = new SkillIcon(this);
             this.img = new Image();
             this.img.src = this.photo;
         }
@@ -388,8 +673,94 @@ class Particle extends AcGameObject {
         }
     }
 
+    create_uuid() {
+        let res = "";
+        for (let i = 0; i < 8; i++) {
+            let x = parseInt(Math.floor(Math.random() * 10)); // 返回[0, 1)
+            res += x;
+        }
+        return res;
+    }
+
     // 监听鼠标事件
     add_listening_events() {
+        // this.add_phone_listening_events();
+        if (this.playground.operator === "pc") {
+            this.add_pc_listening_events();
+        } else {
+            this.add_phone_listening_events();
+        }
+    }
+
+    add_phone_listening_events() {
+        let outer = this;
+        this.fsvjoy = new Fsvjoy(this);
+
+        this.playground.game_map.$canvas.on("touchstart", function (e) {
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return true;
+            }
+        });
+
+        this.playground.game_map.$canvas.on("touchend", function (e) {
+            outer.fsvjoy.freshing();
+            outer.move_length = 0;
+
+            const rect = outer.ctx.canvas.getBoundingClientRect();
+            let tx = (e.changedTouches[0].clientX - rect.left) / outer.playground.scale;
+            let ty = (e.changedTouches[0].clientY - rect.top) / outer.playground.scale;
+            let touch_skill = outer.skill_icon.get_touch_skill(tx, ty);
+            let ttx = Math.cos(outer.angle) * 10;
+            let tty = Math.sin(outer.angle) * 10;
+            if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+                outer.shoot_fireball(ttx, tty);
+
+                // 如果是多人模式就广播发射火球的行为
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                }
+            } else if (touch_skill === "normal_attack") {
+                outer.shoot_bullet(ttx, tty);
+            } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+                outer.blink(ttx, tty);
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_blink(tx, ty);
+                }
+            }
+
+        });
+
+        this.playground.game_map.$canvas.on(`touchmove`, function (e) {
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return true;
+            }
+
+            // 获取当前触摸位置
+            let rect = outer.ctx.canvas.getBoundingClientRect();
+            let clientX = e.targetTouches[0].clientX;
+            let clientY = e.targetTouches[0].clientY;
+
+            let tx = (clientX - rect.left) / outer.playground.scale;
+            let ty = (clientY - rect.top) / outer.playground.scale;
+            if (tx <= 0.5 && ty >= 0.5) {
+                // 更新摇杆位置
+                outer.fsvjoy.rocker_x = tx;
+                outer.fsvjoy.rocker_y = ty;
+
+                // 计算角度并调用移动函数
+                outer.angle = Math.atan2(ty - outer.fsvjoy.base_rocker_y, tx - outer.fsvjoy.base_rocker_x);
+                let ttx = Math.cos(outer.angle) * 10;
+                let tty = Math.sin(outer.angle) * 10;
+                outer.move_to(ttx, tty);
+            }
+        });
+
+    }
+
+    add_pc_listening_events() {
         let outer = this;
 
         // 关闭右键菜单功能
@@ -406,7 +777,7 @@ class Particle extends AcGameObject {
             }
 
             // 项目在acapp的小窗口上运行会有坐标值的不匹配的问题，这里做一下坐标映射
-            // 这里canvas前面不能加&，会报错
+            // 这里canvas前面不能加$，会报错
             const rect = outer.ctx.canvas.getBoundingClientRect();
             if (e.which === 3) {
                 let tx = (e.clientX - rect.left) / outer.playground.scale;
@@ -422,7 +793,6 @@ class Particle extends AcGameObject {
                 let ty = (e.clientY - rect.top) / outer.playground.scale;
                 if (outer.cur_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
                     let fireball = outer.shoot_fireball(tx, ty);
-                    console.log("shoot fireball");
 
                     // 如果是多人模式就广播发射火球的行为
                     if (outer.playground.mode === "multi mode") {
@@ -436,7 +806,6 @@ class Particle extends AcGameObject {
                     }
                 } else {
                     let fireball = outer.shoot_bullet(tx, ty);
-                    console.log("shoot bullet");
 
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
@@ -450,17 +819,18 @@ class Particle extends AcGameObject {
         // 重新绑定监听对象到小窗口
         // 之前的监听对象：$(window).keydown(function (e) {
         this.playground.game_map.$canvas.keydown(function (e) {
+
+            // 退出，关闭游戏界面回到主界面（ESC键）
+            if (e.which === 27) {
+                // outer.playground.hide();
+                // location.reload();
+            }
+
             // 打开聊天框（Enter键）
             if (e.which === 13 && outer.playground.mode === "multi mode") {
                 // 打开聊天框
                 outer.playground.chat_field.show_input();
             }
-
-            // // 关闭聊天框（ESC键）
-            // if (e.which === 27 && outer.playground.mode === "multi mode") {
-            //     // 关闭聊天框
-            //     outer.playground.chat_field.hide_input();
-            // }
 
             // 非战斗状态不能攻击
             if (outer.playground.state !== "fighting") {
@@ -481,14 +851,16 @@ class Particle extends AcGameObject {
 
     shoot_fireball(tx, ty) {
         let x = this.x, y = this.y;
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        let vx = Math.cos(angle), vy = Math.sin(angle);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        let vx = Math.cos(this.angle), vy = Math.sin(this.angle);
 
         let fireball = new FireBall(this.playground, this, x, y, vx, vy);
         // 将新生成的火球放进自己的火球数组里
         this.fireballs.push(fireball);
 
-        this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        if (this.character !== "robot") {
+            this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        }
 
         // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
         return fireball;
@@ -496,8 +868,8 @@ class Particle extends AcGameObject {
 
     shoot_bullet(tx, ty) {
         let x = this.x, y = this.y;
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        let vx = Math.cos(angle), vy = Math.sin(angle);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        let vx = Math.cos(this.angle), vy = Math.sin(this.angle);
 
         let bullet = new Bullet(this.playground, this, x, y, vx, vy);
         // 将新生成的火球放进自己的火球数组里
@@ -522,10 +894,10 @@ class Particle extends AcGameObject {
     blink(tx, ty) {
         let d = this.get_dist(this.x, this.y, tx, ty);
         // 闪现距离最大为高度的0.6倍
-        d = Math.min(d, 0.6);
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        this.x += d * Math.cos(angle);
-        this.y += d * Math.sin(angle);
+        d = Math.min(d, 0.4);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        this.x += d * Math.cos(this.angle);
+        this.y += d * Math.sin(this.angle);
 
         // 技能进入冷却
         this.skill_icon.blink_coldtime = this.skill_icon.base_blink_coldtime;
@@ -543,9 +915,9 @@ class Particle extends AcGameObject {
 
     move_to(tx, ty) {
         this.move_length = this.get_dist(this.x, this.y, tx, ty);
-        let angle = Math.atan2(ty - this.y, tx - this.x);  // 移动角度
-        this.vx = Math.cos(angle);  // 横向速度
-        this.vy = Math.sin(angle);  // 纵向速度
+        this.angle = Math.atan2(ty - this.y, tx - this.x);  // 移动角度
+        this.vx = Math.cos(this.angle);  // 横向速度
+        this.vy = Math.sin(this.angle);  // 纵向速度
     }
 
     is_attacked(angle, damage) {
@@ -566,10 +938,6 @@ class Particle extends AcGameObject {
         if (this.radius < this.eps) {
             this.on_destroy();
             this.destroy();
-            // 敌人死亡后再加入新的敌人
-            // if (this.character === "robot") {
-            //     this.playground.add_enemy();
-            // }
             return false;
         }
         this.damage_x = Math.cos(angle);
@@ -590,12 +958,14 @@ class Particle extends AcGameObject {
         this.update_move();
         this.update_win();
 
+        this.render();
+    }
+
+    late_update() {
         // 只有自己，并且在fighting状态下才更新冷却时间
         if (this.character === "me" && this.playground.state === "fighting") {
             this.skill_icon.update_coldtime();
         }
-
-        this.render();
     }
 
     update_win() {
@@ -667,9 +1037,9 @@ class Particle extends AcGameObject {
             this.ctx.fill();
         }
 
-        if (this.character === "me" && this.playground.state === "fighting") {
-            this.skill_icon.render_skill_coldtime();
-        }
+        // if (this.character === "me" && this.playground.state === "fighting") {
+        //     this.skill_icon.render_skill_coldtime();
+        // }
     }
 
     // 玩家死亡后将其从this.playground.players里面删除
@@ -736,7 +1106,7 @@ class ScoreBoard extends AcGameObject {
         let outer = this;
         setTimeout(function () {
             outer.add_listening_events();
-        }, 1000);
+        }, 500);
     }
 
     late_update() {
@@ -969,9 +1339,19 @@ class SkillIcon extends AcGameObject {
         this.player = player;
         this.playground = this.player.playground;
         this.ctx = this.playground.game_map.ctx;
+        this.operator = this.playground.operator;
 
         this.base_fireball_coldtime = 1;
         this.base_blink_coldtime = 3;
+        this.phone_skill_position = {
+            "normal_attack": { x: 1.6, y: 0.8, r: 0.11 },
+            "fireball": { x: 1.4, y: 0.75, r: 0.055 },
+            "blink": { x: 1.31, y: 0.9, r: 0.055 },
+        };
+        this.pc_skill_position = {
+            "fireball": { x: 1.5, y: 0.9, r: 0.04 },
+            "blink": { x: 1.62, y: 0.9, r: 0.04 },
+        };
 
         this.start();
     }
@@ -986,10 +1366,30 @@ class SkillIcon extends AcGameObject {
         this.blink_coldtime = this.base_blink_coldtime;
         this.blink_img = new Image();
         this.blink_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_daccabdc53-blink.png";
+
+        this.normal_attack = new Image();
+        this.normal_attack.src = "https://tank-war-static.oss-cn-hangzhou.aliyuncs.com/BattleOfBalls/normalattack.png";
+
+        this.add_listening_events();
+    }
+
+    add_listening_events() {
+
+    }
+
+    get_touch_skill(tx, ty) {
+        for (let skill_name in this.phone_skill_position) {
+            let position = this.phone_skill_position[skill_name];
+            if (this.player.get_dist(tx, ty, position.x, position.y) <= position.r) {
+                return skill_name;
+            }
+        }
     }
 
     // 更新技能冷却时间
     update_coldtime() {
+        this.render_skill_coldtime();
+
         this.fireball_coldtime -= this.timedelta / 1000;
         this.fireball_coldtime = Math.max(this.fireball_coldtime, 0);
 
@@ -1001,10 +1401,46 @@ class SkillIcon extends AcGameObject {
     render_skill_coldtime() {
         this.render_fireball_coldtime();
         this.render_blink_coldtime();
+        if (this.operator === "phone") {
+            this.render_normal_attack();
+        }
+    }
+
+    render_normal_attack() {
+        let x = null, y = null, r = null;
+        if (this.operator === "phone") {
+            x = this.phone_skill_position["normal_attack"].x
+            y = this.phone_skill_position["normal_attack"].y
+            r = this.phone_skill_position["normal_attack"].r;
+        } else {
+            x = this.pc_skill_position["normal_attack"].x
+            y = this.pc_skill_position["normal_attack"].y
+            r = this.pc_skill_position["normal_attack"].r;
+        }
+
+        let scale = this.playground.scale;
+
+        // 渲染图片
+        this.ctx.save();
+        this.ctx.beginPath();
+        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
+        this.ctx.stroke();
+        this.ctx.clip();
+        this.ctx.drawImage(this.normal_attack, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
+        this.ctx.restore();
     }
 
     render_fireball_coldtime() {
-        let x = 1.5, y = 0.9, r = 0.04;
+        let x = null, y = null, r = null;
+        if (this.operator === "phone") {
+            x = this.phone_skill_position["fireball"].x
+            y = this.phone_skill_position["fireball"].y
+            r = this.phone_skill_position["fireball"].r;
+        } else {
+            x = this.pc_skill_position["fireball"].x
+            y = this.pc_skill_position["fireball"].y
+            r = this.pc_skill_position["fireball"].r;
+        }
         let scale = this.playground.scale;
 
         // 渲染图片
@@ -1028,7 +1464,16 @@ class SkillIcon extends AcGameObject {
     }
 
     render_blink_coldtime() {
-        let x = 1.62, y = 0.9, r = 0.04;
+        let x = null, y = null, r = null;
+        if (this.operator === "phone") {
+            x = this.phone_skill_position["blink"].x
+            y = this.phone_skill_position["blink"].y
+            r = this.phone_skill_position["blink"].r;
+        } else {
+            x = this.pc_skill_position["blink"].x
+            y = this.pc_skill_position["blink"].y
+            r = this.pc_skill_position["blink"].r;
+        }
         let scale = this.playground.scale;
 
         // 渲染图片
@@ -1234,6 +1679,7 @@ class SkillIcon extends AcGameObject {
     constructor(root) {
         this.root = root;
         this.$playground = $(`<div class="ac-game-playground"></div>`);
+        this.operator = "pc"; // pc - phone
 
         this.hide();
 
@@ -1277,6 +1723,17 @@ class SkillIcon extends AcGameObject {
                 $(window).off(`resize.${uuid}`);
             });
         }
+
+        // 查看用户当前使用什么设备登录
+        this.check_operator();
+    }
+
+    check_operator() {
+        let sUserAgent = navigator.userAgent.toLowerCase();
+        let pc = sUserAgent.match(/windows/i) == "windows";
+        if (!pc) {
+            this.operator = "phone";
+        }
     }
 
     // 让界面的长宽比固定为16：9，并且等比例放到最大
@@ -1319,7 +1776,7 @@ class SkillIcon extends AcGameObject {
 
         if (mode === "single mode") {
             // 绘制若干敌人
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 8; i++) {
                 this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
             }
         } else if (mode === "multi mode") {

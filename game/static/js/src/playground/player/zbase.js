@@ -23,12 +23,12 @@ class Player extends AcGameObject {
         this.spent_time = 0;
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
         this.fireballs = [];  // 自己发出的所有子弹
-
-        this.skill_icon = new SkillIcon(this);
+        this.angle = 0;  // 玩家朝向
 
         this.cur_skill = null;
 
         if (this.character !== "robot") {
+            this.skill_icon = new SkillIcon(this);
             this.img = new Image();
             this.img.src = this.photo;
         }
@@ -53,8 +53,94 @@ class Player extends AcGameObject {
         }
     }
 
+    create_uuid() {
+        let res = "";
+        for (let i = 0; i < 8; i++) {
+            let x = parseInt(Math.floor(Math.random() * 10)); // 返回[0, 1)
+            res += x;
+        }
+        return res;
+    }
+
     // 监听鼠标事件
     add_listening_events() {
+        // this.add_phone_listening_events();
+        if (this.playground.operator === "pc") {
+            this.add_pc_listening_events();
+        } else {
+            this.add_phone_listening_events();
+        }
+    }
+
+    add_phone_listening_events() {
+        let outer = this;
+        this.fsvjoy = new Fsvjoy(this);
+
+        this.playground.game_map.$canvas.on("touchstart", function (e) {
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return true;
+            }
+        });
+
+        this.playground.game_map.$canvas.on("touchend", function (e) {
+            outer.fsvjoy.freshing();
+            outer.move_length = 0;
+
+            const rect = outer.ctx.canvas.getBoundingClientRect();
+            let tx = (e.changedTouches[0].clientX - rect.left) / outer.playground.scale;
+            let ty = (e.changedTouches[0].clientY - rect.top) / outer.playground.scale;
+            let touch_skill = outer.skill_icon.get_touch_skill(tx, ty);
+            let ttx = Math.cos(outer.angle) * 10;
+            let tty = Math.sin(outer.angle) * 10;
+            if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+                outer.shoot_fireball(ttx, tty);
+
+                // 如果是多人模式就广播发射火球的行为
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
+                }
+            } else if (touch_skill === "normal_attack") {
+                outer.shoot_bullet(ttx, tty);
+            } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+                outer.blink(ttx, tty);
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_blink(tx, ty);
+                }
+            }
+
+        });
+
+        this.playground.game_map.$canvas.on(`touchmove`, function (e) {
+            // 非战斗状态不能移动
+            if (outer.playground.state !== "fighting") {
+                return true;
+            }
+
+            // 获取当前触摸位置
+            let rect = outer.ctx.canvas.getBoundingClientRect();
+            let clientX = e.targetTouches[0].clientX;
+            let clientY = e.targetTouches[0].clientY;
+
+            let tx = (clientX - rect.left) / outer.playground.scale;
+            let ty = (clientY - rect.top) / outer.playground.scale;
+            if (tx <= 0.5 && ty >= 0.5) {
+                // 更新摇杆位置
+                outer.fsvjoy.rocker_x = tx;
+                outer.fsvjoy.rocker_y = ty;
+
+                // 计算角度并调用移动函数
+                outer.angle = Math.atan2(ty - outer.fsvjoy.base_rocker_y, tx - outer.fsvjoy.base_rocker_x);
+                let ttx = Math.cos(outer.angle) * 10;
+                let tty = Math.sin(outer.angle) * 10;
+                outer.move_to(ttx, tty);
+            }
+        });
+
+    }
+
+    add_pc_listening_events() {
         let outer = this;
 
         // 关闭右键菜单功能
@@ -71,7 +157,7 @@ class Player extends AcGameObject {
             }
 
             // 项目在acapp的小窗口上运行会有坐标值的不匹配的问题，这里做一下坐标映射
-            // 这里canvas前面不能加&，会报错
+            // 这里canvas前面不能加$，会报错
             const rect = outer.ctx.canvas.getBoundingClientRect();
             if (e.which === 3) {
                 let tx = (e.clientX - rect.left) / outer.playground.scale;
@@ -87,7 +173,6 @@ class Player extends AcGameObject {
                 let ty = (e.clientY - rect.top) / outer.playground.scale;
                 if (outer.cur_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
                     let fireball = outer.shoot_fireball(tx, ty);
-                    console.log("shoot fireball");
 
                     // 如果是多人模式就广播发射火球的行为
                     if (outer.playground.mode === "multi mode") {
@@ -101,7 +186,6 @@ class Player extends AcGameObject {
                     }
                 } else {
                     let fireball = outer.shoot_bullet(tx, ty);
-                    console.log("shoot bullet");
 
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
@@ -115,6 +199,13 @@ class Player extends AcGameObject {
         // 重新绑定监听对象到小窗口
         // 之前的监听对象：$(window).keydown(function (e) {
         this.playground.game_map.$canvas.keydown(function (e) {
+
+            // 退出，关闭游戏界面回到主界面（ESC键）
+            if (e.which === 27) {
+                // outer.playground.hide();
+                // location.reload();
+            }
+
             // 打开聊天框（Enter键）
             if (e.which === 13 && outer.playground.mode === "multi mode") {
                 // 打开聊天框
@@ -140,14 +231,16 @@ class Player extends AcGameObject {
 
     shoot_fireball(tx, ty) {
         let x = this.x, y = this.y;
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        let vx = Math.cos(angle), vy = Math.sin(angle);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        let vx = Math.cos(this.angle), vy = Math.sin(this.angle);
 
         let fireball = new FireBall(this.playground, this, x, y, vx, vy);
         // 将新生成的火球放进自己的火球数组里
         this.fireballs.push(fireball);
 
-        this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        if (this.character !== "robot") {
+            this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        }
 
         // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
         return fireball;
@@ -155,8 +248,8 @@ class Player extends AcGameObject {
 
     shoot_bullet(tx, ty) {
         let x = this.x, y = this.y;
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        let vx = Math.cos(angle), vy = Math.sin(angle);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        let vx = Math.cos(this.angle), vy = Math.sin(this.angle);
 
         let bullet = new Bullet(this.playground, this, x, y, vx, vy);
         // 将新生成的火球放进自己的火球数组里
@@ -181,10 +274,10 @@ class Player extends AcGameObject {
     blink(tx, ty) {
         let d = this.get_dist(this.x, this.y, tx, ty);
         // 闪现距离最大为高度的0.6倍
-        d = Math.min(d, 0.6);
-        let angle = Math.atan2(ty - this.y, tx - this.x);
-        this.x += d * Math.cos(angle);
-        this.y += d * Math.sin(angle);
+        d = Math.min(d, 0.4);
+        this.angle = Math.atan2(ty - this.y, tx - this.x);
+        this.x += d * Math.cos(this.angle);
+        this.y += d * Math.sin(this.angle);
 
         // 技能进入冷却
         this.skill_icon.blink_coldtime = this.skill_icon.base_blink_coldtime;
@@ -202,9 +295,9 @@ class Player extends AcGameObject {
 
     move_to(tx, ty) {
         this.move_length = this.get_dist(this.x, this.y, tx, ty);
-        let angle = Math.atan2(ty - this.y, tx - this.x);  // 移动角度
-        this.vx = Math.cos(angle);  // 横向速度
-        this.vy = Math.sin(angle);  // 纵向速度
+        this.angle = Math.atan2(ty - this.y, tx - this.x);  // 移动角度
+        this.vx = Math.cos(this.angle);  // 横向速度
+        this.vy = Math.sin(this.angle);  // 纵向速度
     }
 
     is_attacked(angle, damage) {
@@ -225,10 +318,6 @@ class Player extends AcGameObject {
         if (this.radius < this.eps) {
             this.on_destroy();
             this.destroy();
-            // 敌人死亡后再加入新的敌人
-            // if (this.character === "robot") {
-            //     this.playground.add_enemy();
-            // }
             return false;
         }
         this.damage_x = Math.cos(angle);
@@ -249,12 +338,14 @@ class Player extends AcGameObject {
         this.update_move();
         this.update_win();
 
+        this.render();
+    }
+
+    late_update() {
         // 只有自己，并且在fighting状态下才更新冷却时间
         if (this.character === "me" && this.playground.state === "fighting") {
             this.skill_icon.update_coldtime();
         }
-
-        this.render();
     }
 
     update_win() {
@@ -326,9 +417,9 @@ class Player extends AcGameObject {
             this.ctx.fill();
         }
 
-        if (this.character === "me" && this.playground.state === "fighting") {
-            this.skill_icon.render_skill_coldtime();
-        }
+        // if (this.character === "me" && this.playground.state === "fighting") {
+        //     this.skill_icon.render_skill_coldtime();
+        // }
     }
 
     // 玩家死亡后将其从this.playground.players里面删除

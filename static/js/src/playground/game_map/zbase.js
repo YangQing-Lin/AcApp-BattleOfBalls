@@ -13,6 +13,17 @@ class GameMap extends AcGameObject {
     start() {
         // 聚焦到当前canvas
         this.$canvas.focus();
+
+        this.add_listening_events();
+    }
+
+    add_listening_events() {
+        let outer = this;
+
+        // 关闭右键菜单功能
+        this.playground.game_map.$canvas.on("contextmenu", function () {
+            return false;
+        });
     }
 
     // 动态修改GameMap的长宽

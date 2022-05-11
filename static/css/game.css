@@ -132,7 +132,7 @@
 .ac-game-menu-field {
     width: 20vw;
     position: relative;
-    top: 40%;
+    top: 30%;
     left: 20%;
 }
 
@@ -143,6 +143,7 @@
     font-size: 4vh;
     font-style: italic;
     text-align: center;
+    padding: 6px;
     background-color: rgba(39, 21, 28, 0.6);
     border-radius: 10px;
     letter-spacing: 0.5vw;

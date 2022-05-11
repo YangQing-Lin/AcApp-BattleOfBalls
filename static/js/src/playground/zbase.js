@@ -2,6 +2,7 @@ class AcGamePlayground {
     constructor(root) {
         this.root = root;
         this.$playground = $(`<div class="ac-game-playground"></div>`);
+        this.operator = "pc"; // pc - phone
 
         this.hide();
 
@@ -45,6 +46,17 @@ class AcGamePlayground {
                 $(window).off(`resize.${uuid}`);
             });
         }
+
+        // 查看用户当前使用什么设备登录
+        this.check_operator();
+    }
+
+    check_operator() {
+        let sUserAgent = navigator.userAgent.toLowerCase();
+        let pc = sUserAgent.match(/windows/i) == "windows";
+        if (!pc) {
+            this.operator = "phone";
+        }
     }
 
     // 让界面的长宽比固定为16：9，并且等比例放到最大
@@ -87,7 +99,7 @@ class AcGamePlayground {
 
         if (mode === "single mode") {
             // 绘制若干敌人
-            for (let i = 0; i < 12; i++) {
+            for (let i = 0; i < 8; i++) {
                 this.players.push(new Player(this, this.width / 2 / this.scale, 0.5, 0.05, this.get_random_color(), 0.15, "robot"));
             }
         } else if (mode === "multi mode") {
