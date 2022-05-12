@@ -42,8 +42,12 @@ class AcGamePlayground {
         });
 
         if (this.root.AcWingOS) {
+            let outer = this;
+
             this.root.AcWingOS.api.window.on_close(function () {
                 $(window).off(`resize.${uuid}`);
+                outer.hide();
+                outer.root.menu.show();
             });
         }
 
@@ -123,6 +127,11 @@ class AcGamePlayground {
             this.players[0].destroy();
         }
 
+        if (this.score_board) {
+            this.score_board.destroy();
+            this.score_board = null;
+        }
+
         if (this.game_map) {
             this.game_map.destroy();
             this.game_map = null;
@@ -131,11 +140,6 @@ class AcGamePlayground {
         if (this.notice_board) {
             this.notice_board.destroy();
             this.notice_board = null;
-        }
-
-        if (this.score_board) {
-            this.score_board.destroy();
-            this.score_board = null;
         }
 
         // 清空当前的html对象

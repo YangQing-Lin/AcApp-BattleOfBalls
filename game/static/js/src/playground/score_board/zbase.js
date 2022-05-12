@@ -19,6 +19,9 @@ class ScoreBoard extends AcGameObject {
 
     add_listening_events() {
         let outer = this;
+        if (!this.playground.game_map) {
+            return true;
+        }
         let $canvas = this.playground.game_map.$canvas;
 
         // 这里不需要用`click.${outer.uuid}`来手动移除监听事件
@@ -36,7 +39,7 @@ class ScoreBoard extends AcGameObject {
         let outer = this;
         setTimeout(function () {
             outer.add_listening_events();
-        }, 1000);
+        }, 500);
     }
 
     lose() {

@@ -47,7 +47,6 @@ class AcGameMenu {
             this.$fullscreen_mode.hide();
             this.$fullscreen_br.hide();
         }
-        console.log(this.root.settings.platform);
     }
 
     add_listening_events() {

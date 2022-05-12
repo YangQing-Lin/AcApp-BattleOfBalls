@@ -194,6 +194,7 @@ class AcGameObject {
         this.has_called_start = false;  // 是否执行过start函数
         this.timedelta = 0;  // 当前距离上一帧的时间间隔（单位：ms）
         this.uuid = this.create_uuid();
+        console.log(this.uuid);
     }
 
     // 创建一个唯一编号，用于联机对战识别窗口和用户
@@ -911,6 +912,7 @@ class Particle extends AcGameObject {
     update_win() {
         if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
             this.playground.state = "over";
+            console.log("update win");
             this.playground.score_board.win();
         }
     }
@@ -1020,6 +1022,9 @@ class ScoreBoard extends AcGameObject {
 
     add_listening_events() {
         let outer = this;
+        if (!this.playground.game_map) {
+            return true;
+        }
         let $canvas = this.playground.game_map.$canvas;
 
         // 这里不需要用`click.${outer.uuid}`来手动移除监听事件
@@ -1037,7 +1042,7 @@ class ScoreBoard extends AcGameObject {
         let outer = this;
         setTimeout(function () {
             outer.add_listening_events();
-        }, 1000);
+        }, 500);
     }
 
     lose() {
@@ -1702,8 +1707,12 @@ class SkillIcon extends AcGameObject {
         });
 
         if (this.root.AcWingOS) {
+            let outer = this;
+
             this.root.AcWingOS.api.window.on_close(function () {
                 $(window).off(`resize.${uuid}`);
+                outer.hide();
+                outer.root.menu.show();
             });
         }
 
@@ -1783,6 +1792,11 @@ class SkillIcon extends AcGameObject {
             this.players[0].destroy();
         }
 
+        if (this.score_board) {
+            this.score_board.destroy();
+            this.score_board = null;
+        }
+
         if (this.game_map) {
             this.game_map.destroy();
             this.game_map = null;
@@ -1791,11 +1805,6 @@ class SkillIcon extends AcGameObject {
         if (this.notice_board) {
             this.notice_board.destroy();
             this.notice_board = null;
-        }
-
-        if (this.score_board) {
-            this.score_board.destroy();
-            this.score_board = null;
         }
 
         // 清空当前的html对象
