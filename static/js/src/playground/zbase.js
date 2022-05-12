@@ -42,24 +42,23 @@ class AcGamePlayground {
         });
 
         if (this.root.AcWingOS) {
-            let outer = this;
-
             this.root.AcWingOS.api.window.on_close(function () {
                 $(window).off(`resize.${uuid}`);
                 outer.hide();
-                outer.root.menu.show();
             });
         }
 
         // 查看用户当前使用什么设备登录
-        this.check_operator();
+        this.operator = this.check_operator();
     }
 
     check_operator() {
         let sUserAgent = navigator.userAgent.toLowerCase();
         let pc = sUserAgent.match(/windows/i) == "windows";
         if (!pc) {
-            this.operator = "phone";
+            return "phone";
+        } else {
+            return "pc";
         }
     }
 
@@ -141,6 +140,8 @@ class AcGamePlayground {
             this.notice_board.destroy();
             this.notice_board = null;
         }
+
+
 
         // 清空当前的html对象
         this.$playground.empty();

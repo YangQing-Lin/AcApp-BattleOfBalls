@@ -45,6 +45,8 @@ class AcGameObject {
                 break;
             }
         }
+
+        console.log(AC_GAME_OBJECTS);
     }
 }
 

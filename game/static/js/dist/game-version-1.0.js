@@ -143,7 +143,6 @@ class FullScreen {
             this.$fullscreen_mode.hide();
             this.$fullscreen_br.hide();
         }
-        console.log(this.root.settings.platform);
     }
 
     add_listening_events() {
@@ -232,6 +231,8 @@ class AcGameObject {
                 break;
             }
         }
+
+        console.log(AC_GAME_OBJECTS);
     }
 }
 
@@ -987,6 +988,11 @@ class Particle extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
+        if (this.character === "me") {
+            this.skill_icon.destroy();
+            this.skill_icon = null;
+        }
+        
         if (this.character === "me" && this.playground.state === "fighting") {
             this.playground.state = "over";
             this.playground.score_board.lose();
@@ -1707,24 +1713,23 @@ class SkillIcon extends AcGameObject {
         });
 
         if (this.root.AcWingOS) {
-            let outer = this;
-
             this.root.AcWingOS.api.window.on_close(function () {
                 $(window).off(`resize.${uuid}`);
                 outer.hide();
-                outer.root.menu.show();
             });
         }
 
         // 查看用户当前使用什么设备登录
-        this.check_operator();
+        this.operator = this.check_operator();
     }
 
     check_operator() {
         let sUserAgent = navigator.userAgent.toLowerCase();
         let pc = sUserAgent.match(/windows/i) == "windows";
         if (!pc) {
-            this.operator = "phone";
+            return "phone";
+        } else {
+            return "pc";
         }
     }
 
@@ -1806,6 +1811,8 @@ class SkillIcon extends AcGameObject {
             this.notice_board.destroy();
             this.notice_board = null;
         }
+
+
 
         // 清空当前的html对象
         this.$playground.empty();
