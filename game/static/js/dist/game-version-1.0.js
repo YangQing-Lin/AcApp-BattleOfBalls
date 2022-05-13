@@ -193,7 +193,7 @@ class AcGameObject {
         this.has_called_start = false;  // 是否执行过start函数
         this.timedelta = 0;  // 当前距离上一帧的时间间隔（单位：ms）
         this.uuid = this.create_uuid();
-        console.log(this.uuid);
+        // console.log(this.uuid);
     }
 
     // 创建一个唯一编号，用于联机对战识别窗口和用户
@@ -232,7 +232,7 @@ class AcGameObject {
             }
         }
 
-        console.log(AC_GAME_OBJECTS);
+        // console.log(AC_GAME_OBJECTS);
     }
 }
 
@@ -913,7 +913,6 @@ class Particle extends AcGameObject {
     update_win() {
         if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
             this.playground.state = "over";
-            console.log("update win");
             this.playground.score_board.win();
         }
     }

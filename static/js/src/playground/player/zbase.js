@@ -375,7 +375,6 @@ class Player extends AcGameObject {
     update_win() {
         if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
             this.playground.state = "over";
-            console.log("update win");
             this.playground.score_board.win();
         }
     }
