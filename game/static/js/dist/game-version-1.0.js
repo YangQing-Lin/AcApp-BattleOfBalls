@@ -988,11 +988,11 @@ class Particle extends AcGameObject {
     // 玩家死亡后将其从this.playground.players里面删除
     // 这个函数和基类的destroy不同，基类的是将其从AC_GAME_OBJECTS数组里面删除
     on_destroy() {
-        if (this.character === "me") {
+        if (this.character === "me" && this.skill_icon) {
             this.skill_icon.destroy();
             this.skill_icon = null;
         }
-        
+
         if (this.character === "me" && this.playground.state === "fighting") {
             this.playground.state = "over";
             this.playground.score_board.lose();
