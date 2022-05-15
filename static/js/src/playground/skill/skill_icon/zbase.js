@@ -36,22 +36,22 @@ class SkillIcon extends AcGameObject {
             "fireball": {
                 pc_position: { x: 1.62, y: 0.9, r: 0.04 },
                 phone_position: { x: 1.4, y: 0.75, r: 0.055 },
-                cold_time: 1, base_cold_time: 1, img: this.fireball_img
+                cold_time: 1, base_cold_time: 1, img: this.fireball_img, key: "Q"
             },
             "blink": {
                 pc_position: { x: 1.5, y: 0.9, r: 0.04 },
                 phone_position: { x: 1.31, y: 0.9, r: 0.055 },
-                cold_time: 3, base_cold_time: 3, img: this.blink_img
+                cold_time: 3, base_cold_time: 3, img: this.blink_img, key: "F"
             },
             "shield": {
                 pc_position: { x: 1.38, y: 0.9, r: 0.04 },
                 phone_position: { x: 1.5, y: 0.62, r: 0.055 },
-                cold_time: 5, base_cold_time: 5, img: this.shield_img
+                cold_time: 5, base_cold_time: 5, img: this.shield_img, key: "W"
             },
             "track_bullet": {
                 pc_position: { x: 1.26, y: 0.9, r: 0.04 },
                 phone_position: { x: 1.6, y: 0.49, r: 0.055 },
-                cold_time: 7, base_cold_time: 7, img: this.track_bullet
+                cold_time: 7, base_cold_time: 7, img: this.track_bullet, key: "E"
             },
         };
     }
@@ -78,9 +78,31 @@ class SkillIcon extends AcGameObject {
         this.skill_param[skill_name].cold_time = this.skill_param[skill_name].base_cold_time;
     }
 
-    update() {
+    late_update() {
         this.update_skill_coldtime();
         this.render_skill_coldtime();
+        this.render_text();
+    }
+
+    // 渲染技能对应的按键
+    render_text() {
+        if (this.operator === "phone") {
+            return false;
+        }
+
+        let scale = this.playground.scale;
+        for (let skill_name in this.skill_param) {
+            let position = this.skill_param[skill_name].pc_position;
+            let key = this.skill_param[skill_name].key;
+            if (this.operator === "pc" && skill_name === "normal_attack") {
+                continue;
+            }
+            // canvas 渲染文本
+            this.ctx.font = "20px serif";
+            this.ctx.fillStyle = "white";
+            this.ctx.textAlign = "center";
+            this.ctx.fillText(key, position.x * scale, (position.y + position.r * 1.7) * scale);
+        }
     }
 
     // 更新技能冷却时间
