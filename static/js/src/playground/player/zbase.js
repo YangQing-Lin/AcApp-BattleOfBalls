@@ -13,7 +13,9 @@ class Player extends AcGameObject {
         this.move_length = 0;  // 移动的直线距离
         this.radius = radius;
         this.color = color;
-        this.speed = speed;
+        this.base_speed = speed;
+        this.max_speed = this.base_speed * 1.5;  // 玩家最大速度（血量为0时）
+        this.speed = this.base_speed;
         this.character = character;
         this.username = username;
         this.photo = photo;
@@ -392,8 +394,8 @@ class Player extends AcGameObject {
 
         this.damage_x = Math.cos(angle);
         this.damage_y = Math.sin(angle);
-        this.damage_speed = damage * 100;
-        this.speed *= 1 + damage * 10;
+        this.damage_speed = hp_damage / 25;  // 按照y总的击退距离等比例应用在满血100的玩家上
+        this.speed = this.base_speed + (this.max_speed - this.base_speed) / 100 * (100 - this.hp);
     }
 
     // 多人模式下玩家接收到被攻击的信息
