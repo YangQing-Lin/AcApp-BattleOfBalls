@@ -17,12 +17,14 @@ class Player extends AcGameObject {
         this.character = character;
         this.username = username;
         this.photo = photo;
+        this.hp = 100;
 
         this.eps = 0.01;
         this.friction = 0.9;  // 阻尼
         this.spent_time = 0;
         this.enemy_cold_time = 3;  // 敌人3秒之后开始战斗
-        this.fireballs = [];  // 自己发出的所有子弹
+        this.fireballs = [];  // 自己发出的所有火球
+        this.bullets = [];  // 自己发出的所有子弹
         this.angle = 0;  // 玩家朝向
 
         this.cur_skill = null;
@@ -32,6 +34,8 @@ class Player extends AcGameObject {
             this.img = new Image();
             this.img.src = this.photo;
         }
+
+        this.health_bar = new HealthBar(this.playground, this);
     }
 
     start() {
@@ -128,6 +132,8 @@ class Player extends AcGameObject {
                 if (outer.playground.mode === "multi mode") {
                     outer.playground.mps.send_blink(ttx, tty);
                 }
+            } else if (touch_skill === "shield" && outer.skill_icon.shield_coldtime <= outer.eps) {
+                outer.generate_shield();
             }
         });
 
@@ -174,7 +180,6 @@ class Player extends AcGameObject {
 
         // 监听鼠标右键点击事件，获取鼠标位置
         this.playground.game_map.$canvas.mousedown(function (e) {
-
             // 非战斗状态不能移动
             if (outer.playground.state !== "fighting") {
                 return true;
@@ -223,6 +228,7 @@ class Player extends AcGameObject {
         // 重新绑定监听对象到小窗口
         // 之前的监听对象：$(window).keydown(function (e) {
         this.playground.game_map.$canvas.keydown(function (e) {
+            console.log(e.which);
 
             // 退出，关闭游戏界面回到主界面（ESC键）
             if (e.which === 27) {
@@ -247,10 +253,20 @@ class Player extends AcGameObject {
             } else if (e.which === 70 && outer.skill_icon.blink_coldtime <= outer.eps) {  // F键
                 outer.cur_skill = "blink";
                 return false;
+            } else if (e.which === 87 && outer.skill_icon.shield_coldtime <= outer.eps) {  // W键
+                outer.generate_shield();
+                return false;
             }
 
             return true;
         });
+    }
+
+    generate_shield() {
+        this.shield = new Shield(this.playground, this);
+        if (this.character !== "robot") {
+            this.skill_icon.shield_coldtime = this.skill_icon.base_shield_coldtime;
+        }
     }
 
     shoot_fireball(tx, ty) {
@@ -337,13 +353,12 @@ class Player extends AcGameObject {
             new Particle(this.playground, x, y, radius, vx, vy, color, speed, move_length);
         }
 
-        this.radius -= damage;
-        // 小球半径不够就死了
-        if (this.radius < this.eps) {
-            this.on_destroy();
+        this.hp -= hp_damage;
+        if (this.hp < this.eps) {
             this.destroy();
             return false;
         }
+
         this.damage_x = Math.cos(angle);
         this.damage_y = Math.sin(angle);
         this.damage_speed = damage * 100;
@@ -430,7 +445,6 @@ class Player extends AcGameObject {
             this.ctx.save();
             this.ctx.beginPath();
             this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
-            this.ctx.stroke();
             this.ctx.clip();
             this.ctx.drawImage(this.img, (this.x - this.radius) * scale, (this.y - this.radius) * scale, this.radius * 2 * scale, this.radius * 2 * scale);
             this.ctx.restore();
@@ -440,10 +454,6 @@ class Player extends AcGameObject {
             this.ctx.fillStyle = this.color;
             this.ctx.fill();
         }
-
-        // if (this.character === "me" && this.playground.state === "fighting") {
-        //     this.skill_icon.render_skill_coldtime();
-        // }
     }
 
     // 玩家死亡后将其从this.playground.players里面删除
@@ -457,6 +467,11 @@ class Player extends AcGameObject {
         if (this.character === "me" && this.playground.state === "fighting") {
             this.playground.state = "over";
             this.playground.score_board.lose();
+        }
+
+        if (this.health_bar) {
+            this.health_bar.destroy();
+            this.health_bar = null;
         }
 
         for (let i = 0; i < this.playground.players.length; i++) {

@@ -73,7 +73,7 @@ class Bullet extends AcGameObject {
 
     attack(player) {
         let angle = Math.atan2(player.y - this.y, player.x - this.x);
-        player.is_attacked(angle, this.damage);
+        player.is_attacked(angle, this.damage, this.hp_damage);
 
         // 只有多人模式下才需要广播子弹攻击
         if (this.playground.mode === "multi mode") {
