@@ -16,6 +16,7 @@ class FireBall extends AcGameObject {
         this.hp_damage = 25;
 
         this.eps = 0.01;
+
     }
 
     start() {
@@ -85,7 +86,6 @@ class FireBall extends AcGameObject {
 
     render() {
         let scale = this.playground.scale;
-
         this.ctx.beginPath();
         this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
         this.ctx.fillStyle = this.color;

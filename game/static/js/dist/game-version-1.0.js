@@ -702,7 +702,7 @@ class Particle extends AcGameObject {
             }
 
             // 如果触摸的位置在技能区的话就判断点击的技能并释放
-            if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+            if (touch_skill === "fireball" && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {
                 let fireball = outer.shoot_fireball(ttx, tty);
 
                 // 如果是多人模式就广播发射火球的行为
@@ -716,14 +716,16 @@ class Particle extends AcGameObject {
                 if (outer.playground.mode === "multi mode") {
                     outer.playground.mps.send_shoot_bullet(ttx, tty, bullet.uuid);
                 }
-            } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+            } else if (touch_skill === "blink" && outer.skill_icon.get_cold_time("blink") <= outer.eps) {
                 outer.blink(ttx, tty);
 
                 if (outer.playground.mode === "multi mode") {
                     outer.playground.mps.send_blink(ttx, tty);
                 }
-            } else if (touch_skill === "shield" && outer.skill_icon.shield_coldtime <= outer.eps) {
+            } else if (touch_skill === "shield" && outer.skill_icon.get_cold_time("shield") <= outer.eps) {
                 outer.generate_shield();
+            } else if (touch_skill === "track_bullet" && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {
+                let track_bullet_array = outer.shoot_eight_track_bullet();
             }
         });
 
@@ -790,14 +792,14 @@ class Particle extends AcGameObject {
             } else if (e.which === 1) {
                 let tx = (e.clientX - rect.left) / outer.playground.scale;
                 let ty = (e.clientY - rect.top) / outer.playground.scale;
-                if (outer.cur_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+                if (outer.cur_skill === "fireball" && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {
                     let fireball = outer.shoot_fireball(tx, ty);
 
                     // 如果是多人模式就广播发射火球的行为
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
                     }
-                } else if (outer.cur_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+                } else if (outer.cur_skill === "blink" && outer.skill_icon.get_cold_time("blink") <= outer.eps) {
                     outer.blink(tx, ty);
 
                     if (outer.playground.mode === "multi mode") {
@@ -837,14 +839,17 @@ class Particle extends AcGameObject {
                 return true;
             }
 
-            if (e.which === 81 && outer.skill_icon.fireball_coldtime <= outer.eps) {  // Q键
+            if (e.which === 81 && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {  // Q键
                 outer.cur_skill = "fireball";
                 return false;
-            } else if (e.which === 70 && outer.skill_icon.blink_coldtime <= outer.eps) {  // F键
+            } else if (e.which === 70 && outer.skill_icon.get_cold_time("blink") <= outer.eps) {  // F键
                 outer.cur_skill = "blink";
                 return false;
-            } else if (e.which === 87 && outer.skill_icon.shield_coldtime <= outer.eps) {  // W键
+            } else if (e.which === 87 && outer.skill_icon.get_cold_time("shield") <= outer.eps) {  // W键
                 outer.generate_shield();
+                return false;
+            } else if (e.which === 69 && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {  // E键
+                let track_bullet_array = outer.shoot_eight_track_bullet();
                 return false;
             }
 
@@ -855,8 +860,34 @@ class Particle extends AcGameObject {
     generate_shield() {
         this.shield = new Shield(this.playground, this);
         if (this.character !== "robot") {
-            this.skill_icon.shield_coldtime = this.skill_icon.base_shield_coldtime;
+            this.skill_icon.set_cold_time("shield");
         }
+    }
+
+    shoot_eight_track_bullet() {
+        let track_bullet_array = [];
+        for (let i = 0; i < 8; i++) {
+            let track_bullet = this.shoot_track_bullet(i * Math.PI * 2 / 8);
+            track_bullet_array.push(track_bullet);
+        }
+        this.skill_icon.set_cold_time("track_bullet");
+        return track_bullet_array;
+    }
+
+    shoot_track_bullet(angle) {
+        let x = this.x, y = this.y;
+        let vx = Math.cos(angle), vy = Math.sin(angle);
+
+        let track_bullet = new TrackBullet(this.playground, this, x, y, vx, vy);
+        // 将新生成的火球放进自己的火球数组里
+        this.fireballs.push(track_bullet);
+
+        // if (this.character !== "robot") {
+        //     this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        // }
+
+        // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
+        return track_bullet;
     }
 
     shoot_fireball(tx, ty) {
@@ -869,7 +900,7 @@ class Particle extends AcGameObject {
         this.fireballs.push(fireball);
 
         if (this.character !== "robot") {
-            this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+            this.skill_icon.set_cold_time("fireball");
         }
 
         // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
@@ -910,7 +941,7 @@ class Particle extends AcGameObject {
         this.y += d * Math.sin(this.angle);
 
         // 技能进入冷却
-        this.skill_icon.blink_coldtime = this.skill_icon.base_blink_coldtime;
+        this.skill_icon.set_cold_time("blink");
 
         // 闪现之后停下来
         this.move_length = 0;
@@ -971,14 +1002,20 @@ class Particle extends AcGameObject {
     }
 
     late_update() {
-        // 只有自己，并且在fighting状态下才更新冷却时间
-        if (this.character === "me" && this.playground.state === "fighting") {
-            this.skill_icon.update_coldtime();
-        }
+
     }
 
     update_win() {
         if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
+            // 先让玩家停下来
+            if (this.playground.operator === "phone") {
+                this.fsvjoy.freshing();
+            }
+            this.move_length = 0;
+            if (this.playground.mode === "multi mode") {
+                this.playground.mps.send_stop_player();
+            }
+
             this.playground.state = "over";
             this.playground.score_board.win();
         }
@@ -1062,6 +1099,11 @@ class Particle extends AcGameObject {
         if (this.health_bar) {
             this.health_bar.destroy();
             this.health_bar = null;
+        }
+
+        if (this.shield) {
+            this.shield.destroy();
+            this.shield = null;
         }
 
         for (let i = 0; i < this.playground.players.length; i++) {
@@ -1263,6 +1305,7 @@ class FireBall extends AcGameObject {
         this.hp_damage = 25;
 
         this.eps = 0.01;
+
     }
 
     start() {
@@ -1332,7 +1375,6 @@ class FireBall extends AcGameObject {
 
     render() {
         let scale = this.playground.scale;
-
         this.ctx.beginPath();
         this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
         this.ctx.fillStyle = this.color;
@@ -1440,45 +1482,54 @@ class Shield extends AcGameObject {
         this.ctx = this.playground.game_map.ctx;
         this.operator = this.playground.operator;
 
-        this.base_fireball_coldtime = 1;
-        this.base_blink_coldtime = 3;
-        this.base_shield_coldtime = 5;
-
-        this.phone_skill_position = {
-            "normal_attack": { x: 1.6, y: 0.8, r: 0.11 },
-            "blink": { x: 1.31, y: 0.9, r: 0.055 },
-            "fireball": { x: 1.4, y: 0.75, r: 0.055 },
-            "shield": { x: 1.5, y: 0.62, r: 0.055 },
-        };
-        this.pc_skill_position = {
-            "blink": { x: 1.62, y: 0.9, r: 0.04 },
-            "fireball": { x: 1.5, y: 0.9, r: 0.04 },
-            "shield": { x: 1.38, y: 0.9, r: 0.04 },
-        };
-
-        this.start();
     }
 
     start() {
         // 火球技能冷却时间（单位：秒）
-        this.fireball_coldtime = this.base_fireball_coldtime;
         this.fireball_img = new Image();
         this.fireball_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_9340c86053-fireball.png";
 
         // 闪现技能冷却时间
-        this.blink_coldtime = this.base_blink_coldtime;
         this.blink_img = new Image();
         this.blink_img.src = "https://cdn.acwing.com/media/article/image/2021/12/02/1_daccabdc53-blink.png";
 
         // 护盾技能图标
-        this.shield_coldtime = this.base_shield_coldtime;
         this.shield_img = new Image();
         this.shield_img.src = "https://tank-war-static.oss-cn-hangzhou.aliyuncs.com/BattleOfBalls/skill/shield.jfif";
+
+        // 追踪导弹技能图标
+        this.track_bullet = new Image();
+        this.track_bullet.src = "https://tank-war-static.oss-cn-hangzhou.aliyuncs.com/BattleOfBalls/skill/track_bullet.png";
 
         this.normal_attack = new Image();
         this.normal_attack.src = "https://tank-war-static.oss-cn-hangzhou.aliyuncs.com/BattleOfBalls/normalattack.png";
 
-        this.add_listening_events();
+        this.skill_param = {
+            "normal_attack": {
+                phone_position: { x: 1.6, y: 0.8, r: 0.11 },
+                cold_time: 0.1, base_cold_time: 0.1, img: this.normal_attack
+            },
+            "fireball": {
+                pc_position: { x: 1.62, y: 0.9, r: 0.04 },
+                phone_position: { x: 1.4, y: 0.75, r: 0.055 },
+                cold_time: 1, base_cold_time: 1, img: this.fireball_img
+            },
+            "blink": {
+                pc_position: { x: 1.5, y: 0.9, r: 0.04 },
+                phone_position: { x: 1.31, y: 0.9, r: 0.055 },
+                cold_time: 3, base_cold_time: 3, img: this.blink_img
+            },
+            "shield": {
+                pc_position: { x: 1.38, y: 0.9, r: 0.04 },
+                phone_position: { x: 1.5, y: 0.62, r: 0.055 },
+                cold_time: 5, base_cold_time: 5, img: this.shield_img
+            },
+            "track_bullet": {
+                pc_position: { x: 1.26, y: 0.9, r: 0.04 },
+                phone_position: { x: 1.6, y: 0.49, r: 0.055 },
+                cold_time: 7, base_cold_time: 7, img: this.track_bullet
+            },
+        };
     }
 
     add_listening_events() {
@@ -1486,49 +1537,61 @@ class Shield extends AcGameObject {
     }
 
     get_touch_skill(tx, ty) {
-        for (let skill_name in this.phone_skill_position) {
-            let position = this.phone_skill_position[skill_name];
+        for (let skill_name in this.skill_param) {
+            let position = this.skill_param[skill_name].phone_position;
             if (this.player.get_dist(tx, ty, position.x, position.y) <= position.r) {
                 return skill_name;
             }
         }
     }
 
-    // 更新技能冷却时间
-    update_coldtime() {
+    get_cold_time(skill_name) {
+        return this.skill_param[skill_name].cold_time;
+    }
+
+    // 让技能进入CD
+    set_cold_time(skill_name) {
+        this.skill_param[skill_name].cold_time = this.skill_param[skill_name].base_cold_time;
+    }
+
+    update() {
+        this.update_skill_coldtime();
         this.render_skill_coldtime();
+    }
 
-        this.fireball_coldtime -= this.timedelta / 1000;
-        this.fireball_coldtime = Math.max(this.fireball_coldtime, 0);
-
-        this.blink_coldtime -= this.timedelta / 1000;
-        this.blink_coldtime = Math.max(this.blink_coldtime, 0);
-
-        this.shield_coldtime -= this.timedelta / 1000;
-        this.shield_coldtime = Math.max(this.shield_coldtime, 0);
+    // 更新技能冷却时间
+    update_skill_coldtime() {
+        for (let skill_name in this.skill_param) {
+            let param = this.skill_param[skill_name];
+            if (this.operator === "pc" && skill_name === "normal_attack") {
+                continue;
+            }
+            param.cold_time -= this.timedelta / 1000;
+            param.cold_time = Math.max(param.cold_time, 0);
+        }
     }
 
     // 渲染技能图标和冷却时间蒙版
     render_skill_coldtime() {
-        this.render_fireball_coldtime();
-        this.render_blink_coldtime();
-        this.render_shield_coldtime();
-
-        if (this.operator === "phone") {
-            this.render_normal_attack();
+        for (let skill_name in this.skill_param) {
+            let param = this.skill_param[skill_name];
+            if (this.operator === "pc" && skill_name === "normal_attack") {
+                continue;
+            }
+            this.render_coldtime(skill_name, param.img, param.cold_time, param.base_cold_time)
         }
     }
 
-    render_shield_coldtime() {
+    render_coldtime(skill_name, skill_img, skill_cold_time, base_skill_cold_time) {
         let x = null, y = null, r = null;
         if (this.operator === "phone") {
-            x = this.phone_skill_position["shield"].x
-            y = this.phone_skill_position["shield"].y
-            r = this.phone_skill_position["shield"].r;
+            x = this.skill_param[skill_name].phone_position.x
+            y = this.skill_param[skill_name].phone_position.y
+            r = this.skill_param[skill_name].phone_position.r;
         } else {
-            x = this.pc_skill_position["shield"].x
-            y = this.pc_skill_position["shield"].y
-            r = this.pc_skill_position["shield"].r;
+            x = this.skill_param[skill_name].pc_position.x
+            y = this.skill_param[skill_name].pc_position.y
+            r = this.skill_param[skill_name].pc_position.r;
         }
         let scale = this.playground.scale;
 
@@ -1537,104 +1600,55 @@ class Shield extends AcGameObject {
         this.ctx.beginPath();
         this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
         this.ctx.clip();
-        this.ctx.drawImage(this.shield_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
+        this.ctx.drawImage(skill_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
         this.ctx.restore();
 
         // 渲染护盾剩余冷却和时间蒙版
-        if (this.shield_coldtime > 0) {
+        if (skill_cold_time > 0) {
             this.ctx.beginPath();
             this.ctx.moveTo(x * scale, y * scale);
-            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.shield_coldtime / this.base_shield_coldtime) - Math.PI / 2, true);
+            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - skill_cold_time / base_skill_cold_time) - Math.PI / 2, true);
             this.ctx.lineTo(x * scale, y * scale);
             this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
             this.ctx.fill();
         }
     }
+}class TrackBullet extends FireBall {
+    constructor(playground, player, x, y, vx, vy) {
+        super(playground, player, x, y, vx, vy);
+        this.color = "gold";
+        this.damage = 0.01;
+        this.hp_damage = 8;
+        this.max_speed = 0.7;
+        this.slow_down_time = 0.4;  // 追踪球减速时间
+        this.accelerate_time = 1;  // 追踪球加速时间
+        this.temp_time = this.slow_down_time;
+        this.is_accelerate = false;  // 是否在加速
 
-    render_normal_attack() {
-        let x = null, y = null, r = null;
-        if (this.operator === "phone") {
-            x = this.phone_skill_position["normal_attack"].x
-            y = this.phone_skill_position["normal_attack"].y
-            r = this.phone_skill_position["normal_attack"].r;
-        } else {
-            x = this.pc_skill_position["normal_attack"].x
-            y = this.pc_skill_position["normal_attack"].y
-            r = this.pc_skill_position["normal_attack"].r;
-        }
-
-        let scale = this.playground.scale;
-
-        // 渲染图片
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
-        this.ctx.clip();
-        this.ctx.drawImage(this.normal_attack, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
-        this.ctx.restore();
     }
 
-    render_fireball_coldtime() {
-        let x = null, y = null, r = null;
-        if (this.operator === "phone") {
-            x = this.phone_skill_position["fireball"].x
-            y = this.phone_skill_position["fireball"].y
-            r = this.phone_skill_position["fireball"].r;
-        } else {
-            x = this.pc_skill_position["fireball"].x
-            y = this.pc_skill_position["fireball"].y
-            r = this.pc_skill_position["fireball"].r;
-        }
-        let scale = this.playground.scale;
+    start() {
 
-        // 渲染图片
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
-        this.ctx.clip();
-        this.ctx.drawImage(this.fireball_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
-        this.ctx.restore();
-
-        // 渲染火球剩余冷却和时间蒙版
-        if (this.fireball_coldtime > 0) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x * scale, y * scale);
-            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.fireball_coldtime / this.base_fireball_coldtime) - Math.PI / 2, true);
-            this.ctx.lineTo(x * scale, y * scale);
-            this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
-            this.ctx.fill();
-        }
     }
 
-    render_blink_coldtime() {
-        let x = null, y = null, r = null;
-        if (this.operator === "phone") {
-            x = this.phone_skill_position["blink"].x
-            y = this.phone_skill_position["blink"].y
-            r = this.phone_skill_position["blink"].r;
+    late_update() {
+        this.update_speed();
+    }
+
+    update_speed() {
+        if (!this.is_accelerate) {
+            this.temp_time -= this.timedelta / 1000;
+            this.speed = this.max_speed * (this.temp_time / this.slow_down_time);
+
+            // 减速时间结束后就开始加速
+            if (this.temp_time <= this.eps) {
+                this.is_accelerate = true;
+                this.temp_time = 0;
+            }
         } else {
-            x = this.pc_skill_position["blink"].x
-            y = this.pc_skill_position["blink"].y
-            r = this.pc_skill_position["blink"].r;
-        }
-        let scale = this.playground.scale;
-
-        // 渲染图片
-        this.ctx.save();
-        this.ctx.beginPath();
-        this.ctx.arc(x * scale, y * scale, r * scale, 0, Math.PI * 2, false);
-        this.ctx.clip();
-        this.ctx.drawImage(this.blink_img, (x - r) * scale, (y - r) * scale, r * 2 * scale, r * 2 * scale);
-        this.ctx.restore();
-
-        // 渲染闪现剩余冷却和时间蒙版
-        if (this.blink_coldtime > 0) {
-            this.ctx.beginPath();
-            this.ctx.moveTo(x * scale, y * scale);
-            this.ctx.arc(x * scale, y * scale, r * scale, 0 - Math.PI / 2, Math.PI * 2 * (1 - this.blink_coldtime / this.base_blink_coldtime) - Math.PI / 2, true);
-            this.ctx.lineTo(x * scale, y * scale);
-            this.ctx.fillStyle = "rgba(0, 0, 255, 0.4)";
-            this.ctx.fill();
+            this.temp_time += this.timedelta / 1000;
+            this.temp_time = Math.min(this.temp_time, this.accelerate_time);
+            this.speed = this.max_speed * (this.temp_time / this.accelerate_time);
         }
     }
 }class MultiPlayerSocket {

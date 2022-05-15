@@ -112,7 +112,7 @@ class Player extends AcGameObject {
             }
 
             // 如果触摸的位置在技能区的话就判断点击的技能并释放
-            if (touch_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+            if (touch_skill === "fireball" && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {
                 let fireball = outer.shoot_fireball(ttx, tty);
 
                 // 如果是多人模式就广播发射火球的行为
@@ -126,14 +126,16 @@ class Player extends AcGameObject {
                 if (outer.playground.mode === "multi mode") {
                     outer.playground.mps.send_shoot_bullet(ttx, tty, bullet.uuid);
                 }
-            } else if (touch_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+            } else if (touch_skill === "blink" && outer.skill_icon.get_cold_time("blink") <= outer.eps) {
                 outer.blink(ttx, tty);
 
                 if (outer.playground.mode === "multi mode") {
                     outer.playground.mps.send_blink(ttx, tty);
                 }
-            } else if (touch_skill === "shield" && outer.skill_icon.shield_coldtime <= outer.eps) {
+            } else if (touch_skill === "shield" && outer.skill_icon.get_cold_time("shield") <= outer.eps) {
                 outer.generate_shield();
+            } else if (touch_skill === "track_bullet" && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {
+                let track_bullet_array = outer.shoot_eight_track_bullet();
             }
         });
 
@@ -200,14 +202,14 @@ class Player extends AcGameObject {
             } else if (e.which === 1) {
                 let tx = (e.clientX - rect.left) / outer.playground.scale;
                 let ty = (e.clientY - rect.top) / outer.playground.scale;
-                if (outer.cur_skill === "fireball" && outer.skill_icon.fireball_coldtime <= outer.eps) {
+                if (outer.cur_skill === "fireball" && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {
                     let fireball = outer.shoot_fireball(tx, ty);
 
                     // 如果是多人模式就广播发射火球的行为
                     if (outer.playground.mode === "multi mode") {
                         outer.playground.mps.send_shoot_fireball(tx, ty, fireball.uuid);
                     }
-                } else if (outer.cur_skill === "blink" && outer.skill_icon.blink_coldtime <= outer.eps) {
+                } else if (outer.cur_skill === "blink" && outer.skill_icon.get_cold_time("blink") <= outer.eps) {
                     outer.blink(tx, ty);
 
                     if (outer.playground.mode === "multi mode") {
@@ -247,14 +249,17 @@ class Player extends AcGameObject {
                 return true;
             }
 
-            if (e.which === 81 && outer.skill_icon.fireball_coldtime <= outer.eps) {  // Q键
+            if (e.which === 81 && outer.skill_icon.get_cold_time("fireball") <= outer.eps) {  // Q键
                 outer.cur_skill = "fireball";
                 return false;
-            } else if (e.which === 70 && outer.skill_icon.blink_coldtime <= outer.eps) {  // F键
+            } else if (e.which === 70 && outer.skill_icon.get_cold_time("blink") <= outer.eps) {  // F键
                 outer.cur_skill = "blink";
                 return false;
-            } else if (e.which === 87 && outer.skill_icon.shield_coldtime <= outer.eps) {  // W键
+            } else if (e.which === 87 && outer.skill_icon.get_cold_time("shield") <= outer.eps) {  // W键
                 outer.generate_shield();
+                return false;
+            } else if (e.which === 69 && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {  // E键
+                let track_bullet_array = outer.shoot_eight_track_bullet();
                 return false;
             }
 
@@ -265,8 +270,34 @@ class Player extends AcGameObject {
     generate_shield() {
         this.shield = new Shield(this.playground, this);
         if (this.character !== "robot") {
-            this.skill_icon.shield_coldtime = this.skill_icon.base_shield_coldtime;
+            this.skill_icon.set_cold_time("shield");
         }
+    }
+
+    shoot_eight_track_bullet() {
+        let track_bullet_array = [];
+        for (let i = 0; i < 8; i++) {
+            let track_bullet = this.shoot_track_bullet(i * Math.PI * 2 / 8);
+            track_bullet_array.push(track_bullet);
+        }
+        this.skill_icon.set_cold_time("track_bullet");
+        return track_bullet_array;
+    }
+
+    shoot_track_bullet(angle) {
+        let x = this.x, y = this.y;
+        let vx = Math.cos(angle), vy = Math.sin(angle);
+
+        let track_bullet = new TrackBullet(this.playground, this, x, y, vx, vy);
+        // 将新生成的火球放进自己的火球数组里
+        this.fireballs.push(track_bullet);
+
+        // if (this.character !== "robot") {
+        //     this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+        // }
+
+        // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
+        return track_bullet;
     }
 
     shoot_fireball(tx, ty) {
@@ -279,7 +310,7 @@ class Player extends AcGameObject {
         this.fireballs.push(fireball);
 
         if (this.character !== "robot") {
-            this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
+            this.skill_icon.set_cold_time("fireball");
         }
 
         // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
@@ -320,7 +351,7 @@ class Player extends AcGameObject {
         this.y += d * Math.sin(this.angle);
 
         // 技能进入冷却
-        this.skill_icon.blink_coldtime = this.skill_icon.base_blink_coldtime;
+        this.skill_icon.set_cold_time("blink");
 
         // 闪现之后停下来
         this.move_length = 0;
@@ -381,14 +412,20 @@ class Player extends AcGameObject {
     }
 
     late_update() {
-        // 只有自己，并且在fighting状态下才更新冷却时间
-        if (this.character === "me" && this.playground.state === "fighting") {
-            this.skill_icon.update_coldtime();
-        }
+
     }
 
     update_win() {
         if (this.playground.state === "fighting" && this.character === "me" && this.playground.players.length === 1) {
+            // 先让玩家停下来
+            if (this.playground.operator === "phone") {
+                this.fsvjoy.freshing();
+            }
+            this.move_length = 0;
+            if (this.playground.mode === "multi mode") {
+                this.playground.mps.send_stop_player();
+            }
+
             this.playground.state = "over";
             this.playground.score_board.win();
         }
@@ -472,6 +509,11 @@ class Player extends AcGameObject {
         if (this.health_bar) {
             this.health_bar.destroy();
             this.health_bar = null;
+        }
+
+        if (this.shield) {
+            this.shield.destroy();
+            this.shield = null;
         }
 
         for (let i = 0; i < this.playground.players.length; i++) {
