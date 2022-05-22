@@ -137,6 +137,10 @@ class Player extends AcGameObject {
                 outer.generate_shield();
             } else if (touch_skill === "track_bullet" && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {
                 let track_bullet_array = outer.shoot_eight_track_bullet();
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_eight_track_bullet(track_bullet_array);
+                }
             }
         });
 
@@ -261,6 +265,10 @@ class Player extends AcGameObject {
                 return false;
             } else if (e.which === 69 && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {  // E键
                 let track_bullet_array = outer.shoot_eight_track_bullet();
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_shoot_eight_track_bullet(track_bullet_array);
+                }
                 return false;
             }
 

@@ -249,6 +249,19 @@ class MultiPlayer(AsyncWebsocketConsumer):
         )
 
 
+    async def shoot_track_bullet(self, data):
+        await self.channel_layer.group_send(
+            self.room_name,
+            {
+                'type': "group_send_event",
+                'event': "shoot_track_bullet",
+                'uuid': data['uuid'],
+                'angle': data['angle'],
+                'ball_uuid': data['ball_uuid'],
+            }
+        )
+
+
     async def stop(self, data):
         await self.channel_layer.group_send(
             self.room_name,
@@ -280,3 +293,5 @@ class MultiPlayer(AsyncWebsocketConsumer):
             await self.shoot_bullet(data)
         elif event == "stop":
             await self.stop(data)
+        elif event == "shoot_track_bullet":
+            await self.shoot_track_bullet(data)
