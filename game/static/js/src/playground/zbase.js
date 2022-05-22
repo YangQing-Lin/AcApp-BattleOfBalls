@@ -52,6 +52,7 @@ class AcGamePlayground {
         this.operator = this.check_operator();
     }
 
+    // 查看用户使用的是移动端还是PC端
     check_operator() {
         let sUserAgent = navigator.userAgent.toLowerCase();
         let pc = sUserAgent.match(/windows/i) == "windows";

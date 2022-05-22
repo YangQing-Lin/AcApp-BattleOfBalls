@@ -70,7 +70,6 @@ class Player extends AcGameObject {
 
     // 监听鼠标事件
     add_listening_events() {
-        // this.add_phone_listening_events();
         if (this.playground.operator === "pc") {
             this.add_pc_listening_events();
         } else {
@@ -294,11 +293,7 @@ class Player extends AcGameObject {
         // 将新生成的火球放进自己的火球数组里
         this.fireballs.push(track_bullet);
 
-        // if (this.character !== "robot") {
-        //     this.skill_icon.fireball_coldtime = this.skill_icon.base_fireball_coldtime;
-        // }
-
-        // 返回刚刚发射的火球（用于在room里同步所有子弹的uuid）
+        // 返回刚刚发射的追踪导弹（用于在room里同步所有子弹的uuid）
         return track_bullet;
     }
 

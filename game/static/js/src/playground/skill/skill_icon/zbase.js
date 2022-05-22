@@ -160,3 +160,4 @@ class SkillIcon extends AcGameObject {
         }
     }
 }
+

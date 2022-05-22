@@ -1640,7 +1640,7 @@ class Shield extends AcGameObject {
 }class TrackBullet extends FireBall {
     constructor(playground, player, x, y, vx, vy) {
         super(playground, player, x, y, vx, vy);
-        this.color = "gold";
+        this.color = "red";
         this.damage = 0.01;
         this.hp_damage = 8;
         this.max_speed = 0.7;
@@ -1648,6 +1648,7 @@ class Shield extends AcGameObject {
         this.accelerate_time = 1;  // 追踪球加速时间
         this.temp_time = this.slow_down_time;
         this.is_accelerate = false;  // 是否在加速
+        this.move_length = 1.1;
 
     }
 
