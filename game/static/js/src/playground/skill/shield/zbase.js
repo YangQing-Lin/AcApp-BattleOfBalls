@@ -47,7 +47,7 @@ class Shield extends AcGameObject {
 
         this.ctx.beginPath();
         this.ctx.arc(this.x * scale, this.y * scale, this.radius * scale, 0, Math.PI * 2, false);
-        this.ctx.lineWidth = 2;
+        this.ctx.lineWidth = 3;
         this.ctx.strokeStyle = this.color;
         this.ctx.stroke();
     }

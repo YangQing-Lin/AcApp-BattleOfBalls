@@ -32,9 +32,13 @@ class Player extends AcGameObject {
         this.cur_skill = null;
 
         if (this.character !== "robot") {
-            this.skill_icon = new SkillIcon(this);
             this.img = new Image();
             this.img.src = this.photo;
+        }
+
+        // 只有自己才需要绘制技能图标
+        if (this.character === "me") {
+            this.skill_icon = new SkillIcon(this);
         }
 
         this.health_bar = new HealthBar(this.playground, this);
@@ -135,6 +139,10 @@ class Player extends AcGameObject {
                 }
             } else if (touch_skill === "shield" && outer.skill_icon.get_cold_time("shield") <= outer.eps) {
                 outer.generate_shield();
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_generate_shield();
+                }
             } else if (touch_skill === "track_bullet" && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {
                 let track_bullet_array = outer.shoot_eight_track_bullet();
 
@@ -262,6 +270,10 @@ class Player extends AcGameObject {
                 return false;
             } else if (e.which === 87 && outer.skill_icon.get_cold_time("shield") <= outer.eps) {  // W键
                 outer.generate_shield();
+
+                if (outer.playground.mode === "multi mode") {
+                    outer.playground.mps.send_generate_shield();
+                }
                 return false;
             } else if (e.which === 69 && outer.skill_icon.get_cold_time("track_bullet") <= outer.eps) {  // E键
                 let track_bullet_array = outer.shoot_eight_track_bullet();
@@ -278,7 +290,7 @@ class Player extends AcGameObject {
 
     generate_shield() {
         this.shield = new Shield(this.playground, this);
-        if (this.character !== "robot") {
+        if (this.character === "me") {
             this.skill_icon.set_cold_time("shield");
         }
     }
@@ -289,7 +301,9 @@ class Player extends AcGameObject {
             let track_bullet = this.shoot_track_bullet(i * Math.PI * 2 / 8);
             track_bullet_array.push(track_bullet);
         }
-        this.skill_icon.set_cold_time("track_bullet");
+        if (this.character === "me") {
+            this.skill_icon.set_cold_time("track_bullet");
+        }
         return track_bullet_array;
     }
 
@@ -314,7 +328,7 @@ class Player extends AcGameObject {
         // 将新生成的火球放进自己的火球数组里
         this.fireballs.push(fireball);
 
-        if (this.character !== "robot") {
+        if (this.character === "me") {
             this.skill_icon.set_cold_time("fireball");
         }
 
@@ -356,7 +370,9 @@ class Player extends AcGameObject {
         this.y += d * Math.sin(this.angle);
 
         // 技能进入冷却
-        this.skill_icon.set_cold_time("blink");
+        if (this.character === "me") {
+            this.skill_icon.set_cold_time("blink");
+        }
 
         // 闪现之后停下来
         this.move_length = 0;

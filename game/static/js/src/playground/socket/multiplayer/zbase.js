@@ -43,6 +43,8 @@ class MultiPlayerSocket {
                 outer.receive_stop_player(uuid);
             } else if (event === "shoot_track_bullet") {
                 outer.receive_shoot_track_bullet(uuid, data.angle, data.ball_uuid);
+            } else if (event === "generate_shield") {
+                outer.receive_generate_shield(uuid);
             }
         };
     }
@@ -241,9 +243,23 @@ class MultiPlayerSocket {
     }
 
     send_shoot_eight_track_bullet(track_bullet_array) {
-        console.log(track_bullet_array);
         for (let i = 0; i < 8; i++) {
             this.send_shoot_track_bullet(i * Math.PI * 2 / 8, track_bullet_array[i].uuid);
+        }
+    }
+
+    send_generate_shield() {
+        let outer = this;
+        this.ws.send(JSON.stringify({
+            'event': "generate_shield",
+            'uuid': outer.uuid,
+        }));
+    }
+
+    receive_generate_shield(uuid) {
+        let player = this.get_player(uuid);
+        if (player) {
+            player.generate_shield();
         }
     }
 }
