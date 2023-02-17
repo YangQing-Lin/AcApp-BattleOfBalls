@@ -2,7 +2,7 @@
 
 在线访问：https://app383.acapp.acwing.com.cn:4432/
 
-![](https://picgo-yangqing.oss-cn-hangzhou.aliyuncs.com/img/202302171320044.png)
+![](https://raw.githubusercontent.com/YangQing-Lin/AcApp-BattleOfBalls/master/game/static/image/menu/bg_1.png)
 
 ![](https://picgo-yangqing.oss-cn-hangzhou.aliyuncs.com/img/202302171304561.png)
 
