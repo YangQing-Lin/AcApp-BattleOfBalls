@@ -23,18 +23,14 @@ WEB端：鼠标右键移动，鼠标左键攻击，Q选中火球技能后左键�
 
 ## 技术栈
 
-- 语言：JavaScript、html、css、python、shell
-- Docker：运行一个Ubuntu容器，在其中搭建运行环境
-- Django：python后端框架
-- Django Channels：websocket长连接实现联机对战功能
-- thrift：将匹配服务解耦到另一台服务器上，降低主服务器负载
-- nginx：部署网络服务、配置https证书
-- uwsgi：替换掉效率低的runserver 
-- shell：更方便启动项目、打包合并所有JavaScript代码到一个文件中（可选用terser加密）
-- Redis数据库：存储用户账号和头像数据
-- OAuth2技术：实现一键登录功能
-- Ajax：请求网站接口并处理返回的数据
-- Git：项目版本控制
+- 使用html、css、JavaScript实现登陆界面、菜单界面和游戏界面；
+- 使用canvas绘制游戏角色和各种技能；
+- 前端使用jQuery来请求后端接口获取数据；
+- 使用Django作为后端框架，部署了Redis数据库，实现了注册和登录的后端接口；
+- 使用Django Channels搭建了客户端到服务端的长连接，并以此实现了联机对战功能；
+- 使用OAuth2技术，运用第三方服务提供的接口实现了第三方快速登录的功能；
+- 使用Python编写了一个简易的玩家匹配系统，使用thrift技术将其部署到另一台服务器上，实现了服务端的解耦合；
+- 项目全程用SSH连接服务器使用tmux和vim开发，积累了丰富的Linux系统使用经验，培养了在服务端排查问题和解决问题的能力。
 
 
 ## 开发日志
